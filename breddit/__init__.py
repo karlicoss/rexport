@@ -5,6 +5,9 @@ from praw.models import Redditor, Subreddit, Submission, Comment, Multireddit # 
 
 from typing import NamedTuple, List, Dict
 
+def get_logger():
+    import logging
+    return logging.getLogger('reddit-backup')
 
 class RedditBackup(NamedTuple):
     profile: Dict

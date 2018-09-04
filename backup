@@ -2,7 +2,4 @@
 set -eu
 cd "$(dirname "$0")"
 
-BPATH="/L/backups/reddit"
-DATE="$(date '+%Y%m%d%H%M%S')"
-
-./run > "$BPATH/reddit-$DATE.json"
+./run
