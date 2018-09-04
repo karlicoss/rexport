@@ -12,7 +12,8 @@ class RedditBackup(NamedTuple):
     upvoted: List[Dict]
     downvoted: List[Dict]
     saved: List[Dict]
-    # TODO submissions??
+    comments: List[Dict]
+    submissions: List[Dict]
 
 
 def cleanup(d):
@@ -70,10 +71,13 @@ class Backuper():
         return self._extract_redditor_stuff('downvoted')
 
     def extract_comments(self) -> List[Dict]:
-        return self._extract_redditor_stuff('comments')
+        return [expand(i) for i in self._redditor().comments.new(limit=None)]
 
     def extract_saved(self) -> List[Dict]:
         return self._extract_redditor_stuff('saved')
+
+    def extract_submissions(self) -> List[Dict]:
+        return [expand(i) for i in self._redditor().submissions.new(limit=None)]
 
     def backup(self) -> RedditBackup:
         rb = RedditBackup(
@@ -82,6 +86,8 @@ class Backuper():
             upvoted=self.extract_upvoted(),
             downvoted=self.extract_downvoted(),
             saved=self.extract_saved(),
+            submissions=self.extract_submissions(),
+            comments=self.extract_comments(),
         )
         return rb
 
