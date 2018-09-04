@@ -13,7 +13,6 @@ import logging
 from kython.logging import setup_logzero
 
 logger = get_logger()
-setup_logzero(logger, level=logging.INFO)
 
 BPATH = "/L/backups/reddit"
 
@@ -24,9 +23,10 @@ def compare(path, a, b):
         '.subscribers',
         '.subreddit_subscribers',
         '.num_comments',
+        '_links_count',
     ]
     if any(path.endswith(i) for i in ignored):
-        logger.info(f"Ignoring path {path}")
+        logger.info(f"ignoring path {path}")
         return True
     if a == b:
         return True
@@ -41,7 +41,7 @@ def compare(path, a, b):
             for i in range(len(a)):
                 if not compare(path + f"[]", a[i], b[i]):
                     alleq = False
-    else: # dict??
+    elif isinstance(a, dict) or isinstance(b, dict):
         ka = set(a.keys())
         kb = set(b.keys())
         if ka != kb:
@@ -50,6 +50,9 @@ def compare(path, a, b):
             for k in ka:
                 if not compare(path + f".{k}", a[k], b[k]):
                     alleq = False
+    else:
+        raise RuntimeError(f"Type mismatch: {type(a)} vs {type(b)}")
+
     return alleq
 
 # TODO mode to force backup? not sure if useful...
@@ -67,6 +70,7 @@ def load_last():
 
 
 def main():
+    setup_logzero(logger, level=logging.INFO)
     backuper = Backuper(
         client_id=config.CLIENT_ID,
         client_secret=config.CLIENT_SECRET,
@@ -92,7 +96,7 @@ def main():
     if cur is not None:
         logger.info(f"saving to {curname}")
         with open(curname, 'w') as fo:
-            json_dump_pretty(fo, cur)
+            json_dump_pretty(fo, cur, indent=1)
 
 if __name__ == '__main__':
     main()

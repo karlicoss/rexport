@@ -21,9 +21,12 @@ class RedditBackup(NamedTuple):
     version: int = 1
 
 
-def cleanup(d):
-    del d['_reddit']
-    return d
+IGNORED_KEYS = {
+    'body_html',
+    'selftext_html',
+    'description_html',
+    'preview',
+}
 
 def expand(d):
     if isinstance(d, (str, float, int, bool, type(None))):
@@ -33,7 +36,7 @@ def expand(d):
         return [expand(x) for x in d]
 
     if isinstance(d, dict):
-        return {k: expand(v) for k, v in d.items()}
+        return {k: expand(v) for k, v in d.items() if k not in IGNORED_KEYS}
 
     if isinstance(d, Redditor): # TODO eh, hopefully it can't go into infinite loop...
         return expand(vars(d))
