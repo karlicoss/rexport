@@ -7,12 +7,14 @@ import os
 import sys
 from pprint import pprint
 
-from kython import JSONType, json_dump_pretty
+from kython import JSONType, json_dumps_pretty
 
 import logging
 from kython.logging import setup_logzero
 
 logger = get_logger()
+
+import lzma
 
 BPATH = "/L/backups/reddit"
 
@@ -59,14 +61,14 @@ def compare(path, a, b):
 # TODO handle deletion of keys?
 def load_last():
     import os
-    lastf = max([f for f in os.listdir(BPATH) if f.endswith('.json')], default=None)
+    lastf = max([f for f in os.listdir(BPATH) if f.endswith('.json.xz')], default=None)
     if lastf is None:
         return None
-    from kython import json_load
+    import json
     lpath = os.path.join(BPATH, lastf)
     logger.info(f"loading last from {lpath}")
-    with open(lpath, 'r') as fo:
-        return json_load(fo)
+    with lzma.open(lpath, 'r') as fo:
+        return json.loads(fo.read().decode('utf8'))
 
 
 def main():
@@ -81,7 +83,7 @@ def main():
     backup = backuper.backup()
     cur = backup._asdict()
     ctime = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    curname = os.path.join(BPATH, f"reddit-{ctime}.json")
+    curname = os.path.join(BPATH, f"reddit-{ctime}.json.xz")
 
     last = load_last()
     if last is not None:
@@ -95,8 +97,8 @@ def main():
 
     if cur is not None:
         logger.info(f"saving to {curname}")
-        with open(curname, 'w') as fo:
-            json_dump_pretty(fo, cur, indent=1)
+        with lzma.open(curname, 'w') as fo:
+            fo.write(json_dumps_pretty(fo, cur, indent=1).encode('utf8'))
 
 if __name__ == '__main__':
     main()
