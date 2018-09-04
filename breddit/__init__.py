@@ -1,7 +1,7 @@
 from kython import JSONType
 
 import praw # type: ignore
-from praw.models import Redditor, Subreddit, Submission, Comment # type: ignore
+from praw.models import Redditor, Subreddit, Submission, Comment, Multireddit # type: ignore
 
 from typing import NamedTuple, List, Dict
 
@@ -9,11 +9,13 @@ from typing import NamedTuple, List, Dict
 class RedditBackup(NamedTuple):
     profile: Dict
     subreddits: List[Dict]
+    multireddits: List[Dict]
     upvoted: List[Dict]
     downvoted: List[Dict]
     saved: List[Dict]
     comments: List[Dict]
     submissions: List[Dict]
+    version: int = 1
 
 
 def cleanup(d):
@@ -34,6 +36,9 @@ def expand(d):
         return expand(vars(d))
 
     if isinstance(d, Subreddit):
+        return expand(vars(d))
+
+    if isinstance(d, Multireddit):
         return expand(vars(d))
 
     if isinstance(d, Submission):
@@ -57,6 +62,9 @@ class Backuper():
 
     def extract_subreddits(self) -> List[Dict]:
         return [expand(i) for i in self.r.user.subreddits(limit=None)]
+
+    def extract_multireddits(self) -> List[Dict]:
+        return [expand(i) for i in self.r.user.multireddits()]
 
     def extract_profile(self) -> Dict:
         return expand(self.r.user.me())
@@ -82,6 +90,7 @@ class Backuper():
     def backup(self) -> RedditBackup:
         rb = RedditBackup(
             subreddits=self.extract_subreddits(),
+            multireddits=self.extract_multireddits(),
             profile=self.extract_profile(),
             upvoted=self.extract_upvoted(),
             downvoted=self.extract_downvoted(),
