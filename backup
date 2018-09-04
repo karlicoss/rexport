@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eu
+cd "$(dirname "$0")"
+
+BPATH="/L/Dropbox/data/reddit"
+DATE="$(date '+%Y%m%d%H%M%S')"
+
+./run > "$BPATH/reddit-$DATE.json"
