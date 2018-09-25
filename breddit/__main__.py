@@ -72,7 +72,7 @@ def load_last():
 
 
 def main():
-    setup_logzero(logger, level=logging.INFO)
+    setup_logzero(logger, level=logging.INFO, cronlevel=logging.WARNING)
     backuper = Backuper(
         client_id=config.CLIENT_ID,
         client_secret=config.CLIENT_SECRET,
