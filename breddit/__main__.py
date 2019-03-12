@@ -10,7 +10,7 @@ from pprint import pprint
 from kython import JSONType, json_dumps_pretty
 
 import logging
-from kython.logging import setup_logzero
+from kython.klogging import setup_logzero
 
 logger = get_logger()
 
