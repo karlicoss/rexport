@@ -10,7 +10,7 @@ import logging
 
 from breddit import Backuper, get_logger
 
-import reddit_secrets as config
+import reddit_secrets as config # type: ignore
 
 
 from kython.klogging import setup_logzero
@@ -48,8 +48,8 @@ def main():
     latest_js = fetch_latest()
 
     if previous is not None: # ugh. indentation looks very ugly
-        with TemporaryDirectory() as tdir:
-            tdir = Path(tdir)
+        with TemporaryDirectory() as td:
+            tdir = Path(td)
             latest = tdir / 'latest.json'
             with latest.open('w') as fo:
                 json.dump(latest_js, fo, ensure_ascii=False, indent=1)
