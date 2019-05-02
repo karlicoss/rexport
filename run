@@ -3,4 +3,4 @@ set -eu
 
 cd "$(dirname "$0")"
 
-python3.6 -m breddit
+python3 -m breddit

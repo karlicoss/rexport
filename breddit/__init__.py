@@ -21,6 +21,7 @@ class RedditBackup(NamedTuple):
     version: int = 1
 
 
+# TODO don't need these?
 IGNORED_KEYS = {
     'body_html',
     'selftext_html',
@@ -59,7 +60,7 @@ def expand(d):
     raise RuntimeError(f"Unexpected type: {type(d)}")
 
 
-class Backuper():
+class Backuper:
     def __init__(self, *args, **kwargs):
         self.r = praw.Reddit(user_agent="1111", *args, **kwargs)
 
@@ -93,7 +94,7 @@ class Backuper():
     def extract_submissions(self) -> List[Dict]:
         return [expand(i) for i in self._redditor().submissions.new(limit=None)]
 
-    def backup(self) -> RedditBackup:
+    def backup(self):
         rb = RedditBackup(
             subreddits=self.extract_subreddits(),
             multireddits=self.extract_multireddits(),
@@ -104,5 +105,6 @@ class Backuper():
             submissions=self.extract_submissions(),
             comments=self.extract_comments(),
         )
-        return rb
+        return rb._asdict()
+
 

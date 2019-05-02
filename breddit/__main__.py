@@ -1,104 +1,77 @@
-from breddit import Backuper, get_logger
-
-import reddit_secrets as config
-
 import datetime
 import os
 import sys
 from pprint import pprint
-
-from kython import JSONType, json_dumps_pretty
-
+from pathlib import Path
+from tempfile import TemporaryDirectory
+import json
 import logging
+
+
+from breddit import Backuper, get_logger
+
+import reddit_secrets as config
+
+
 from kython.klogging import setup_logzero
+from kython.misc import import_file
+from kython import kompress
 
-logger = get_logger()
-
-import lzma
-
-BPATH = "/L/backups/reddit"
-
-def compare(path, a, b):
-    ignored = [
-        '.score',
-        '.ups',
-        '.subscribers',
-        '.subreddit_subscribers',
-        '.num_comments',
-        '_links_count',
-    ]
-    if any(path.endswith(i) for i in ignored):
-        logger.info(f"ignoring path {path}")
-        return True
-    if a == b:
-        return True
-    alleq = True
-    if isinstance(a, (int, float, bool, type(None), str)):
-        logger.warning(f"at path {path}: {a} != {b}")
-        alleq = False
-    elif isinstance(a, list) or isinstance(b, list):
-        if a is None or b is None or len(a) != len(b):
-            alleq = False
-        else:
-            for i in range(len(a)):
-                if not compare(path + f"[]", a[i], b[i]):
-                    alleq = False
-    elif isinstance(a, dict) or isinstance(b, dict):
-        ka = set(a.keys())
-        kb = set(b.keys())
-        if ka != kb:
-            alleq = False
-        else:
-            for k in ka:
-                if not compare(path + f".{k}", a[k], b[k]):
-                    alleq = False
-    else:
-        raise RuntimeError(f"Type mismatch: {type(a)} vs {type(b)}")
-
-    return alleq
-
-# TODO mode to force backup? not sure if useful...
-# TODO handle deletion of keys?
-def load_last():
-    import os
-    lastf = max([f for f in os.listdir(BPATH) if f.endswith('.json.xz')], default=None)
-    if lastf is None:
-        return None
-    import json
-    lpath = os.path.join(BPATH, lastf)
-    logger.info(f"loading last from {lpath}")
-    with lzma.open(lpath, 'r') as fo:
-        return json.loads(fo.read().decode('utf8'))
+BPATH = Path("/L/backups/reddit")
 
 
-def main():
-    setup_logzero(logger, level=logging.INFO, cronlevel=logging.WARNING)
+def get_last():
+    backups = BPATH.glob('*.json.xz') # TODO FIX xz... how to ignore .bleanser files?
+    lastf = max(backups, default=None)
+    return lastf
+
+
+def fetch_latest():
+    logger = get_logger()
+    logger.info("retrieving latest data from Reddit")
+
     backuper = Backuper(
         client_id=config.CLIENT_ID,
         client_secret=config.CLIENT_SECRET,
         username=config.USERNAME,
         password=config.PASSWORD,
     )
-    logger.info("Retrieving reddit data...")
-    backup = backuper.backup()
-    cur = backup._asdict()
+    return backuper.backup()
+
+
+def main():
+    logger = get_logger()
+    setup_logzero(logger, level=logging.DEBUG, cronlevel=logging.WARNING)
+
+    previous = get_last()
+
+    latest_js = fetch_latest()
+
+    if previous is not None: # ugh. indentation looks very ugly
+        with TemporaryDirectory() as tdir:
+            tdir = Path(tdir)
+            latest = tdir / 'latest.json'
+            with latest.open('w') as fo:
+                json.dump(latest_js, fo, ensure_ascii=False, indent=1)
+
+            # bleanser = import_file('/L/zzz_syncthing/coding/bleanser/reddit.py')
+            bleanser = import_file('/L/zzz_syncthing/soft/stable/bleanser/reddit.py')
+            norm = bleanser.RedditNormaliser()
+            setup_logzero(norm.logger, level=logging.DEBUG)
+            comp = norm.diff_with(previous, latest, cmd=norm.cleanup(), tdir=tdir)
+            logger.info('comparison result: %s', comp.cmp)
+            if comp.cmp == bleanser.CmpResult.SAME: # TODO maybe need to take both into account?
+                logger.info('backups are same.. exiting')
+                return
+            else:
+                logger.debug('diff: %s', comp.diff)
+
     ctime = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S")
-    curname = os.path.join(BPATH, f"reddit-{ctime}.json.xz")
+    curpath = BPATH / f"reddit-{ctime}.json.xz"
 
-    last = load_last()
-    if last is not None:
-        logger.info("comparing with last backup...")
-        res = compare('', last, cur)
-        if res:
-            logger.info("matched against old backup...skipping")
-            cur = None
-        else:
-            logger.info("did not match")
-
-    if cur is not None:
-        logger.info(f"saving to {curname}")
-        with lzma.open(curname, 'w') as fo:
-            fo.write(json_dumps_pretty(fo, cur, indent=1).encode('utf8'))
+    logger.info('saving to %s', curpath)
+    with kompress.open(curpath, 'wb') as fo:
+        fo.write(json.dumps(latest_js, ensure_ascii=False, indent=1).encode('utf8'))
 
 if __name__ == '__main__':
     main()
