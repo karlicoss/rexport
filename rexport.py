@@ -1,3 +1,8 @@
+#!/usr/bin/env python3
+import argparse
+import json
+from pathlib import Path
+import sys
 from typing import NamedTuple, List, Dict
 
 import praw # type: ignore
@@ -74,3 +79,44 @@ class Exporter:
             submissions =_extract(self._me.submissions.new, limit=None),
         )
         return rb._asdict()
+
+
+AUTH_PARAMS = ['username', 'password', 'client_id', 'client_secret']
+
+# TODO mm. someone migth want to call it as a function with proper arguments?
+def get_json(obj):
+    kwargs = {k: obj[k] for k in AUTH_PARAMS}
+    exporter = Exporter(**kwargs)
+    j = exporter.export()
+    return j
+
+
+def main():
+    p = argparse.ArgumentParser("Tool to export your personal reddit data")
+    p.add_argument('--secrets', type=Path, required=False, help=f'.py file containing {", ".join(AUTH_PARAMS)} variables')
+    p.add_argument('path', type=Path, nargs='?', help='Optional path to backup, otherwise will be printed to stdout')
+    gr = p.add_argument_group('API parameters')
+    for param in AUTH_PARAMS:
+        gr.add_argument('--' + param, type=str)
+    args = p.parse_args()
+
+    secrets_file = args.secrets
+    if secrets_file is not None:
+        obj = {} # type: ignore
+        exec(secrets_file.read_text(), {}, obj)
+    else:
+        obj = vars(args)
+
+    j = get_json(obj)
+    def dump(fo):
+        json.dump(j, fo, ensure_ascii=False, indent=1)
+
+    if args.path is not None:
+        with args.path.open('w') as fo:
+            dump(fo)
+        print(f'saved data to {args.path}', file=sys.stderr)
+    else:
+        dump(sys.stdout)
+
+if __name__ == '__main__':
+    main()
