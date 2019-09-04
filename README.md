@@ -2,7 +2,7 @@ Script to export your Reddit data as json: saves, upvotes, submissions etc.
 
 
 # Setting up
-1. `pip3 install praw`
+1. `pip3 install praw` -- used to benefit from pagination and rate limiting.
 2. In order to use Reddit API, you need to register a [custom 'personal script' app](https://www.reddit.com/prefs/apps) and get `client_id` and `client_secret` parameters.
    See more [here](https://praw.readthedocs.io/en/latest/getting_started/authentication.html).
 3. In order to access user's personal data (e.g. saved posts/comments), reddit API also requires `username` and `password` parameters.

@@ -28,6 +28,7 @@ IGNORED_KEYS = {
     'preview',
 }
 
+# sadly praw doesn't keep raw json data :( https://github.com/praw-dev/praw/issues/830
 def jsonify(d):
     if isinstance(d, (str, float, int, bool, type(None))):
         return d
