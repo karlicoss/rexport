@@ -1,27 +1,20 @@
-from kython import JSONType
+from typing import NamedTuple, List, Dict
 
 import praw # type: ignore
 from praw.models import Redditor, Subreddit, Submission, Comment, Multireddit # type: ignore
 
-from typing import NamedTuple, List, Dict
 
-def get_logger():
-    import logging
-    return logging.getLogger('reddit-backup')
-
-class RedditBackup(NamedTuple):
+class RedditData(NamedTuple):
     profile: Dict
-    subreddits: List[Dict]
     multireddits: List[Dict]
+    subreddits: List[Dict]
+    saved: List[Dict]
     upvoted: List[Dict]
     downvoted: List[Dict]
-    saved: List[Dict]
     comments: List[Dict]
     submissions: List[Dict]
-    version: int = 1
 
 
-# TODO don't need these?
 IGNORED_KEYS = {
     'body_html',
     'selftext_html',
@@ -29,30 +22,24 @@ IGNORED_KEYS = {
     'preview',
 }
 
-def expand(d):
+def jsonify(d):
     if isinstance(d, (str, float, int, bool, type(None))):
         return d
 
     if isinstance(d, list):
-        return [expand(x) for x in d]
+        return [jsonify(x) for x in d]
 
     if isinstance(d, dict):
-        return {k: expand(v) for k, v in d.items() if k not in IGNORED_KEYS}
+        return {k: jsonify(v) for k, v in d.items() if k not in IGNORED_KEYS}
 
-    if isinstance(d, Redditor): # TODO eh, hopefully it can't go into infinite loop...
-        return expand(vars(d))
-
-    if isinstance(d, Subreddit):
-        return expand(vars(d))
-
-    if isinstance(d, Multireddit):
-        return expand(vars(d))
-
-    if isinstance(d, Submission):
-        return expand(vars(d)) # TODO carefully, not sure we need all of it...
-
-    if isinstance(d, Comment):
-        return expand(vars(d)) # TODO carefully, not sure we need all of it...
+    if isinstance(d, (
+            Redditor,
+            Subreddit,
+            Multireddit,
+            Submission,
+            Comment,
+    )): # TODO eh, hopefully it can't go into infinite loop...
+        return jsonify(vars(d))
 
     if isinstance(d, praw.Reddit):
         return None
@@ -60,51 +47,30 @@ def expand(d):
     raise RuntimeError(f"Unexpected type: {type(d)}")
 
 
-class Backuper:
+def _extract(from_, **kwargs) -> List[Dict]:
+    return jsonify(list(from_(**kwargs)))
+
+
+class Exporter:
     def __init__(self, *args, **kwargs):
-        self.r = praw.Reddit(user_agent="1111", *args, **kwargs)
+        self.api = praw.Reddit(user_agent="1111", *args, **kwargs)
 
-    def _redditor(self):
-        return self.r.redditor('karlicoss') # TODO extract from config?
-
-    def extract_subreddits(self) -> List[Dict]:
-        return [expand(i) for i in self.r.user.subreddits(limit=None)]
-
-    def extract_multireddits(self) -> List[Dict]:
-        return [expand(i) for i in self.r.user.multireddits()]
+    @property
+    def _me(self):
+        return self.api.user.me()
 
     def extract_profile(self) -> Dict:
-        return expand(self.r.user.me())
+        return jsonify(self._me)
 
-    def _extract_redditor_stuff(self, thing: str) -> List[Dict]:
-        return [expand(i) for i in getattr(self._redditor(), thing)(limit=None)]
-
-    def extract_upvoted(self) -> List[Dict]:
-        return self._extract_redditor_stuff('upvoted')
-
-    def extract_downvoted(self) -> List[Dict]:
-        return self._extract_redditor_stuff('downvoted')
-
-    def extract_comments(self) -> List[Dict]:
-        return [expand(i) for i in self._redditor().comments.new(limit=None)]
-
-    def extract_saved(self) -> List[Dict]:
-        return self._extract_redditor_stuff('saved')
-
-    def extract_submissions(self) -> List[Dict]:
-        return [expand(i) for i in self._redditor().submissions.new(limit=None)]
-
-    def backup(self):
-        rb = RedditBackup(
-            subreddits=self.extract_subreddits(),
-            multireddits=self.extract_multireddits(),
-            profile=self.extract_profile(),
-            upvoted=self.extract_upvoted(),
-            downvoted=self.extract_downvoted(),
-            saved=self.extract_saved(),
-            submissions=self.extract_submissions(),
-            comments=self.extract_comments(),
+    def export(self):
+        rb = RedditData(
+            profile     =self.extract_profile(),
+            multireddits=_extract(self.api.user.multireddits), # weird, multireddits has no limit
+            subreddits  =_extract(self.api.user.subreddits, limit=None),
+            saved       =_extract(self._me.saved          , limit=None),
+            upvoted     =_extract(self._me.upvoted        , limit=None),
+            downvoted   =_extract(self._me.downvoted      , limit=None),
+            comments    =_extract(self._me.comments.new   , limit=None),
+            submissions =_extract(self._me.submissions.new, limit=None),
         )
         return rb._asdict()
-
-
