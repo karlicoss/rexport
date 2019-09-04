@@ -5,6 +5,7 @@ from pathlib import Path
 import sys
 from typing import NamedTuple, List, Dict
 
+# pip install praw
 import praw # type: ignore
 from praw.models import Redditor, Subreddit, Submission, Comment, Multireddit # type: ignore
 
@@ -58,7 +59,7 @@ def _extract(from_, **kwargs) -> List[Dict]:
 
 class Exporter:
     def __init__(self, *args, **kwargs):
-        self.api = praw.Reddit(user_agent="1111", *args, **kwargs)
+        self.api = praw.Reddit(user_agent="rexport", *args, **kwargs)
 
     @property
     def _me(self):
@@ -83,12 +84,8 @@ class Exporter:
 
 AUTH_PARAMS = ['username', 'password', 'client_id', 'client_secret']
 
-# TODO mm. someone migth want to call it as a function with proper arguments?
-def get_json(obj):
-    kwargs = {k: obj[k] for k in AUTH_PARAMS}
-    exporter = Exporter(**kwargs)
-    j = exporter.export()
-    return j
+def get_json(**params):
+    return Exporter(**params).export()
 
 
 def main():
@@ -107,7 +104,8 @@ def main():
     else:
         obj = vars(args)
 
-    j = get_json(obj)
+    kwargs = {k: obj[k] for k in AUTH_PARAMS}
+    j = get_json(**kwargs)
     def dump(fo):
         json.dump(j, fo, ensure_ascii=False, indent=1)
 
