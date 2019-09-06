@@ -22,3 +22,8 @@ Alternatively, you can pass auth arguments directly, e.g. `rexport.py --username
 However, this is prone to leaking your password in shell history.
 
 You can also import script and call `get_json` function directory to get raw json.
+
+# Example output
+See [./output.json](output.json), it's got some example data you might find in your data export. I've cleaned it up a bit as it's got lots of different fields many of which are probably not relevant.
+
+However, this is pretty API dependent and changes all the time, so better check with [Reddit API](https://www.reddit.com/dev/api) if you are looking to something specific.

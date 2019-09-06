@@ -1,0 +1,99 @@
+{
+ "profile": {
+  ...
+  "subreddit": {
+   "display_name": "u_karlicoss",
+  },
+  ...
+  "link_karma": 73,
+   ...
+  "comment_karma": 48,
+   ...
+ },
+ "multireddits": [
+  {
+   "path": "/user/karlicoss/m/cs",
+   "subreddits": [
+    {
+     ...
+     "display_name": "QuantumComputing",
+     "_path": "r/QuantumComputing/"
+    },
+    {
+     ...
+     "display_name": "cscareerquestionsEU",
+     "_path": "r/cscareerquestionsEU/"
+    }
+   ],
+   "created_utc": 1410023947.0,
+  },
+  ...
+ ],
+ "subreddits": 
+  {
+   "display_name": "BrainMachineInterface",
+   "title": "Brain Machine Interface: Thoughts Into Action",
+   "display_name_prefixed": "r/BrainMachineInterface",
+   "subscribers": 175,
+   "description": "Entertaining introductory sources:\n\nBrain Machine Interface\nhttp://www.ted.com/talks/miguel_nicolelis_a_monkey_that_controls_a_robot_with_its_thoughts_no_really\n\nhttps://www.nature.com/nature/videoarchive/paralysis/index.html\n\nBrain-to-Brain Interface\nhttp://www.ted.com/talks/miguel_nicolelis_brain_to_brain_communication_has_arrived_how_we_did_it\n\nhttps://www.nature.com/articles/srep11869\n\n",
+   ...
+  }
+ ],
+ "saved": 
+  {
+   "subreddit": {
+    "display_name": "sanfrancisco",
+    ...
+   },
+   "selftext": "",
+   "author_fullname": "t2_37osv",
+   "saved": true,
+   "title": "The S.F. Bay Area according to Urban Dictionary [2650x2982] [xpost r/MapPorn]",
+   "subreddit_name_prefixed": "r/sanfrancisco",
+   "name": "t3_45y7bs",
+   "score": 156,
+   "created": 1455593420.0,
+   "id": "45y7bs",
+   "permalink": "/r/sanfrancisco/comments/45y7bs/the_sf_bay_area_according_to_urban_dictionary/",
+   ...
+  }
+ ],
+ "upvoted": same format as saved,
+ "downvoted": same format as saved,
+ "comments": same format as saved,
+ "submissions": [
+  {
+   "subreddit": {
+    ...
+    "display_name": "DataHoarder",
+   },
+   "selftext": "",
+   "author_fullname": "t2_8h0l2",
+   "title": "Reddit takeout: export your account data as JSON: comments, submissions, upvotes, etc.",
+   "subreddit_name_prefixed": "r/DataHoarder",
+   "created": 1567809673.0,
+   "id": "d0hjs7",
+   "permalink": "/r/DataHoarder/comments/d0hjs7/reddit_takeout_export_your_account_data_as_json/",
+   "url": "https://github.com/karlicoss/rexport",
+   "created_utc": 1567780873.0,
+   ...
+  },
+   ...
+ ],
+ "inbox": [
+  {
+   "id": "5sbs2u",
+   "subject": "hello",
+   "was_comment": false,
+   "author": {
+    "name": "q12345",
+    ...
+   },
+   "body": "Glad to meet yoy",
+   "name": "t4_5sbs2u",
+   "created_utc": 1466619258.0,
+   ...
+  },
+  ...
+ ]
+}
