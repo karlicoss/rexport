@@ -7,7 +7,7 @@ from typing import NamedTuple, List, Dict
 
 # pip install praw
 import praw # type: ignore
-from praw.models import Redditor, Subreddit, Submission, Comment, Multireddit # type: ignore
+from praw.models import Redditor, Subreddit, Submission, Comment, Multireddit, Message # type: ignore
 
 
 class RedditData(NamedTuple):
@@ -19,6 +19,7 @@ class RedditData(NamedTuple):
     downvoted: List[Dict]
     comments: List[Dict]
     submissions: List[Dict]
+    inbox: List[Dict]
 
 
 IGNORED_KEYS = {
@@ -45,6 +46,7 @@ def jsonify(d):
             Multireddit,
             Submission,
             Comment,
+            Message,
     )): # TODO eh, hopefully it can't go into infinite loop...
         return jsonify(vars(d))
 
@@ -79,6 +81,7 @@ class Exporter:
             downvoted   =_extract(self._me.downvoted      , limit=None),
             comments    =_extract(self._me.comments.new   , limit=None),
             submissions =_extract(self._me.submissions.new, limit=None),
+            inbox       =_extract(self.api.inbox.all      , limit=None),
         )
         return rb._asdict()
 
