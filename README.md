@@ -16,12 +16,24 @@ password = ...
 ```
 
 # Using
-**Recommended**: `rexport.py --secrets /path/to/secrets.py`. That way you have to type less and have control over where you're keeping your plaintext reddit password.
+**Recommended**: `rexport.py --secrets /path/to/reddit_secrets.py`. That way you have to type less and have control over where you're keeping your plaintext reddit password.
 
 Alternatively, you can pass auth arguments directly, e.g. `rexport.py --username <user> --password <password> --client_id <client_id> --client_secret <client_secret>`.
 However, this is prone to leaking your password in shell history.
 
 You can also import script and call `get_json` function directory to get raw json.
+
+# Limitations
+**WARNING**: reddit API [limits your queries to 1000 entries](https://www.reddit.com/r/redditdev/comments/61z088/sample_more_than_1000_submissions_within_subreddit).
+It's **highly** recommended to back up regularly and keep old versions. Easy way to achieve it is command like this: `./rexport.py --secrets secrets.py >reddit-$(date -I).json`.
+
+See more:
+
+* [here](https://www.reddit.com/r/DataHoarder/comments/d0hjs7/reddit_takeout_export_your_account_data_as_json/ezbbcxe).
+* [your data is there, there is just no resources to serve it](https://www.reddit.com/r/ideasfortheadmins/wiki/faq#wiki_can_we_have_a_way_to_download_our_entire_history_even_though_reddit_cuts_off_at_a_certain_point)
+* perhaps you can request all of your data under [GDPR](https://www.reddit.com/r/DataHoarder/comments/d0hjs7/reddit_takeout_export_your_account_data_as_json/eza0nsx)? I haven't tried that personally though.
+* [pushshift](https://pushshift.io) can potentially 
+
 
 # Example output
 See [./output.json](output.json), it's got some example data you might find in your data export. I've cleaned it up a bit as it's got lots of different fields many of which are probably not relevant.
