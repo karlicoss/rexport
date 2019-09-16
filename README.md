@@ -29,10 +29,10 @@ It's **highly** recommended to back up regularly and keep old versions. Easy way
 
 See more:
 
-* [here](https://www.reddit.com/r/DataHoarder/comments/d0hjs7/reddit_takeout_export_your_account_data_as_json/ezbbcxe).
-* [your data is there, there is just no resources to serve it](https://www.reddit.com/r/ideasfortheadmins/wiki/faq#wiki_can_we_have_a_way_to_download_our_entire_history_even_though_reddit_cuts_off_at_a_certain_point)
+* [here](https://www.reddit.com/r/DataHoarder/comments/d0hjs7/reddit_takeout_export_your_account_data_as_json/ezbbcxe)
+* [your data is there, there are just no resources to serve it](https://www.reddit.com/r/ideasfortheadmins/wiki/faq#wiki_can_we_have_a_way_to_download_our_entire_history_even_though_reddit_cuts_off_at_a_certain_point)
 * perhaps you can request all of your data under [GDPR](https://www.reddit.com/r/DataHoarder/comments/d0hjs7/reddit_takeout_export_your_account_data_as_json/eza0nsx)? I haven't tried that personally though.
-* [pushshift](https://pushshift.io) can potentially 
+* [pushshift](https://pushshift.io) can potentially help you retrieve old data
 
 
 # Example output
