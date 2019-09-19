@@ -2,7 +2,6 @@
 import argparse
 import json
 from pathlib import Path
-import sys
 from typing import NamedTuple, List, Dict
 
 # pip install praw
@@ -97,17 +96,12 @@ def main():
     args = parser.parse_args()
 
     params = args.params
+    dumper = args.dumper
 
     j = get_json(**params)
-    def dump(fo):
-        json.dump(j, fo, ensure_ascii=False, indent=1)
+    js = json.dumps(j, ensure_ascii=False, indent=1)
+    dumper(js)
 
-    if args.path is not None:
-        with args.path.open('w') as fo:
-            dump(fo)
-        print(f'saved data to {args.path}', file=sys.stderr)
-    else:
-        dump(sys.stdout)
 
 if __name__ == '__main__':
     main()
