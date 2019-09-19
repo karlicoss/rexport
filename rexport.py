@@ -86,29 +86,21 @@ class Exporter:
         return rb._asdict()
 
 
-AUTH_PARAMS = ['username', 'password', 'client_id', 'client_secret']
-
 def get_json(**params):
     return Exporter(**params).export()
 
 
+AUTH_PARAMS = ['username', 'password', 'client_id', 'client_secret']
 def main():
-    p = argparse.ArgumentParser("Tool to export your personal reddit data")
-    p.add_argument('--secrets', type=Path, required=False, help=f'.py file containing {", ".join(AUTH_PARAMS)} variables')
-    p.add_argument('path', type=Path, nargs='?', help='Optional path to backup, otherwise will be printed to stdout')
-    gr = p.add_argument_group('API parameters')
-    for param in AUTH_PARAMS:
-        gr.add_argument('--' + param, type=str)
-    args = p.parse_args()
+    from export_helper import setup_parser
+    parser = argparse.ArgumentParser("Tool to export your personal reddit data")
+    setup_parser(parser=parser, params=AUTH_PARAMS)
+    args = parser.parse_args()
 
-    secrets_file = args.secrets
-    if secrets_file is not None:
-        obj = {} # type: ignore
-        exec(secrets_file.read_text(), {}, obj)
-    else:
-        obj = vars(args)
+    obj = vars(args)
 
-    kwargs = {k: obj[k] for k in AUTH_PARAMS}
+    kwargs = {k: obj[k] for k in AUTH_PARAMS} # TODO wonder if I can receive params only
+
     j = get_json(**kwargs)
     def dump(fo):
         json.dump(j, fo, ensure_ascii=False, indent=1)
