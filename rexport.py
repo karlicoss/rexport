@@ -90,18 +90,15 @@ def get_json(**params):
     return Exporter(**params).export()
 
 
-AUTH_PARAMS = ['username', 'password', 'client_id', 'client_secret']
 def main():
     from export_helper import setup_parser
     parser = argparse.ArgumentParser("Tool to export your personal reddit data")
-    setup_parser(parser=parser, params=AUTH_PARAMS)
+    setup_parser(parser=parser, params=['username', 'password', 'client_id', 'client_secret'])
     args = parser.parse_args()
 
-    obj = vars(args)
+    params = args.params
 
-    kwargs = {k: obj[k] for k in AUTH_PARAMS} # TODO wonder if I can receive params only
-
-    j = get_json(**kwargs)
+    j = get_json(**params)
     def dump(fo):
         json.dump(j, fo, ensure_ascii=False, indent=1)
 
