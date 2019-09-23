@@ -70,7 +70,7 @@ class Exporter:
     def extract_profile(self) -> Dict:
         return jsonify(self._me)
 
-    def export(self):
+    def export_json(self):
         rb = RedditData(
             profile     =self.extract_profile(),
             multireddits=_extract(self.api.user.multireddits), # weird, multireddits has no limit
@@ -84,9 +84,13 @@ class Exporter:
         )
         return rb._asdict()
 
+    def export(self):
+        # keeping for backwards compatibility
+        return self.export_json()
+
 
 def get_json(**params):
-    return Exporter(**params).export()
+    return Exporter(**params).export_json()
 
 
 def main():
