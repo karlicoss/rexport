@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from pathlib import Path
+from pathlib import PurePath, Path
 from typing import List, Dict, Union, Iterable, Iterator, NamedTuple, Any, Sequence
 import json
 from functools import lru_cache
@@ -16,7 +16,7 @@ def get_logger():
     return logging.getLogger('rexport')
 
 
-PathIsh = Union[str, Path]
+PathIsh = Union[str, PurePath]
 Json = Dict[str, Any]
 
 
@@ -57,7 +57,8 @@ class Save(NamedTuple):
 
 class Model:
     def __init__(self, sources: Sequence[PathIsh]) -> None:
-        self.sources = list(map(Path, sources))
+        pathify = lambda s: s if isinstance(s, PurePath) else Path(s)
+        self.sources = list(map(pathify, sources))
 
     def raw(self) -> Json:
         f = max(self.sources)
@@ -73,7 +74,7 @@ class Model:
                 created = pytz.utc.localize(datetime.utcfromtimestamp(s['created_utc']))
                 # TODO need permalink
                 # url = get_some(s, 'link_permalink', 'url') # this was original url...
-                title = s.get('link_title', s)['title']
+                title = s.get('link_title', s.get('title')); assert title is not None
                 yield Save(
                     created=created,
                     title=title,
