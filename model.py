@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import PurePath, Path
-from typing import List, Dict, Union, Iterable, Iterator, NamedTuple, Any, Sequence
+from typing import List, Dict, Union, Iterable, Iterator, NamedTuple, Any, Sequence, Optional
 import json
 from functools import lru_cache
 from collections import OrderedDict
@@ -26,16 +26,13 @@ class Save(NamedTuple):
     created: datetime
     title: str
     sid: Sid
-    json: Any = None
-    # TODO ugh. not sure how to support this in cachew... could try serializing dicts of simple types automatically.. but json can't be properly typed
-    # TODO why would json be none?
+    json: Json
 
     def __hash__(self):
         return hash(self.sid)
 
     @property
     def url(self) -> str:
-        # pylint: disable=unsubscriptable-object
         pl = self.json['permalink']
         return reddit(pl)
 
@@ -49,24 +46,20 @@ class Save(NamedTuple):
 
     @property
     def subreddit(self) -> str:
-        assert self.json is not None
-        # pylint: disable=unsubscriptable-object
         return self.json['subreddit']['display_name']
 
 
 
 class Model:
     def __init__(self, sources: Sequence[PathIsh]) -> None:
-        pathify = lambda s: s if isinstance(s, PurePath) else Path(s)
+        pathify = lambda s: s if isinstance(s, Path) else Path(s)
         self.sources = list(map(pathify, sources))
 
     def raw(self) -> Json:
         f = max(self.sources)
+        # TODO merge them properly?
         with f.open() as fo:
             return json.load(fo)
-        # from kython import kompress # TODO FIXME
-        # with kompress.open(f) as fo:
-        #     return json.load(fo)
 
     def saved(self) -> List[Save]:
         def it():
@@ -93,3 +86,20 @@ class Model:
 def reddit(suffix: str) -> str:
     return 'https://reddit.com' + suffix
 
+
+def main():
+    # TODO FIXME could benefit from some common code here
+    # for unpacking
+    # for get_files like in my. package
+
+    from argparse import ArgumentParser
+    p = ArgumentParser()
+    p.add_argument('--path', type=Path, required=True)
+    args = p.parse_args()
+    model = Model([args.path])
+    for s in model.saved():
+        print(s)
+
+
+if __name__ == '__main__':
+    main()
