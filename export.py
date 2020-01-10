@@ -9,6 +9,11 @@ import praw # type: ignore
 from praw.models import Redditor, Subreddit, Submission, Comment, Multireddit, Message # type: ignore
 
 
+def get_logger():
+    import logging
+    return logging.getLogger('rexport')
+
+
 class RedditData(NamedTuple):
     profile: Dict
     multireddits: List[Dict]
@@ -56,6 +61,8 @@ def jsonify(d):
 
 
 def _extract(from_, **kwargs) -> List[Dict]:
+    logger = get_logger()
+    logger.info('fetching %s', from_)
     return jsonify(list(from_(**kwargs)))
 
 
@@ -94,6 +101,11 @@ def get_json(**params):
 
 
 def main():
+    from export_helper import setup_logger
+    setup_logger(get_logger(), level='DEBUG')
+    # https://praw.readthedocs.io/en/latest/getting_started/logging.html
+    setup_logger('prawcore', level='DEBUG')
+
     parser = make_parser()
     args = parser.parse_args()
 

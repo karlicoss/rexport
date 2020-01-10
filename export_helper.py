@@ -148,6 +148,7 @@ def setup_logger(logger: Union[str, logging.Logger], level='DEBUG', **kwargs):
     try:
         # try logzero first, so user gets nice colored logs
         import logzero  # type: ignore
+        # TODO meh, default formatter shorthands logging levels making it harder to search errors..
     except ModuleNotFoundError:
         import warnings
         warnings.warn("You might want to install 'logzero' for nice colored logs")
