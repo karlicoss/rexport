@@ -22,32 +22,56 @@ Sid = str
 class Save(NamedTuple):
     created: datetime
     title: str
-    sid: Sid
-    json: Json
+    raw: Json
 
     def __hash__(self):
         return hash(self.sid)
 
     @property
+    def sid(self) -> Sid:
+        return self.raw['id']
+
+    @property
     def url(self) -> str:
-        pl = self.json['permalink']
+        pl = self.raw['permalink']
         return reddit(pl)
 
     @property
     def text(self) -> str:
-        bb = self.json.get('body', None)
-        st = self.json.get('selftext', None)
+        bb = self.raw.get('body', None)
+        st = self.raw.get('selftext', None)
         if bb is not None and st is not None:
             raise RuntimeError(f'wtf, both body and selftext are not None: {bb}; {st}')
         return bb or st
 
     @property
     def subreddit(self) -> str:
-        return self.json['subreddit']['display_name']
+        return self.raw['subreddit']['display_name']
+
+
+class Comment(NamedTuple):
+    raw: Json
+
+    @property
+    def created(self) -> datetime:
+        return make_dt(self.raw['created_utc'])
+
+    @property
+    def url(self) -> str:
+        pl = self.raw['permalink']
+        return reddit(pl)
+
+    @property
+    def text(self) -> str:
+        return self.raw['body']
 
 
 def reddit(suffix: str) -> str:
     return 'https://reddit.com' + suffix
+
+
+def make_dt(ts: float) -> datetime:
+    return pytz.utc.localize(datetime.utcfromtimestamp(ts))
 
 
 class DAL:
@@ -62,45 +86,59 @@ class DAL:
                 yield f, json.load(fo)
 
 
-    def saved(self) -> Iterator[Save]:
+    def _accumulate(self, *, what: str) -> Iterator[Json]:
         logger = get_logger()
-        emitted: Set[Sid] = set()
+        emitted: Set[str] = set()
         for f, r in self.raw():
             # default sort order seems to return in the reverse order of 'save time', which makes sense to preserve
-            saved = list(reversed(r['saved']))
-            chunk = len(saved)
+            # TODO careful, perhaps accept sort_by or something?
+            raws = list(reversed(r[what]))
+            chunk = len(raws)
             uniq = 0
-            for s in saved:
-                sid = s['id']
-                if sid in emitted:
+            for raw in raws:
+                eid = raw['id']
+                if eid in emitted:
                     continue
                 uniq += 1
 
-                created = pytz.utc.localize(datetime.utcfromtimestamp(s['created_utc']))
-                # TODO need permalink
-                # url = get_some(s, 'link_permalink', 'url') # this was original url...
-                title = s.get('link_title', s.get('title')); assert title is not None
-                yield Save(
-                    created=created,
-                    title=title,
-                    sid=sid,
-                    json=s,
-                )
-                emitted.add(sid)
-            logger.debug('finished processing %s: %4d/%4d new saves; total: %d', f, uniq, chunk, len(emitted))
+                yield raw
+                emitted.add(eid)
+            logger.warning('%8s: finished processing %s: %4d/%4d new; total: %d', what, f, uniq, chunk, len(emitted))
+
+
+    def saved(self) -> Iterator[Save]:
+        for s in self._accumulate(what='saved'):
+            created = make_dt(s['created_utc'])
+            # TODO need permalink
+            # url = get_some(s, 'link_permalink', 'url') # this was original url...
+            title = s.get('link_title', s.get('title')); assert title is not None
+            yield Save(
+                created=created,
+                title=title,
+                raw=s,
+            )
+
+
+    def comments(self) -> Iterator[Comment]:
+        # TODO makes sense to update them perhaps?
+        for raw in self._accumulate(what='comments'):
+            yield Comment(raw)
 
     # TODO add other things, e.g. upvotes/comments etc
 
 
 def demo(dal: DAL):
-    print("Saved posts:")
-    for s in dal.saved():
-        print(s.created, s.url, s.title)
+    print("Your comments:")
+    for s in dal.comments():
+        print(s.created, s.url)
+        sep = '\n |  '
+        body = sep + sep.join(s.text.splitlines())
+        print(body) # TOD ??
+        print()
     # TODO some pandas?
 
     from collections import Counter
-    saved = list(dal.saved())
-    c = Counter([s.subreddit for s in saved])
+    c = Counter([s.subreddit for s in dal.saved()])
     from pprint import pprint
     print("Your most saved subreddits:")
     pprint(c.most_common(5))
