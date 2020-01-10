@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import PurePath, Path
-from typing import List, Dict, Union, Iterator, NamedTuple, Any, Sequence, Optional
+from typing import List, Dict, Union, Iterator, NamedTuple, Any, Sequence, Optional, Set
 import json
 from pathlib import Path
 from datetime import datetime
@@ -55,42 +55,51 @@ class DAL:
         pathify = lambda s: s if isinstance(s, Path) else Path(s)
         self.sources = list(map(pathify, sources))
 
-    def raw(self) -> Json:
-        f = max(self.sources)
-        # TODO FIXME merge them properly?
-        with f.open() as fo:
-            return json.load(fo)
+
+    def raw(self):
+        for f in sorted(self.sources):
+            with f.open() as fo:
+                yield f, json.load(fo)
+
 
     def saved(self) -> Iterator[Save]:
-        for s in self.raw()['saved']:
-            created = pytz.utc.localize(datetime.utcfromtimestamp(s['created_utc']))
-            # TODO need permalink
-            # url = get_some(s, 'link_permalink', 'url') # this was original url...
-            title = s.get('link_title', s.get('title')); assert title is not None
-            yield Save(
-                created=created,
-                title=title,
-                sid=s['id'],
-                json=s,
-            )
-        # default sort order seems to redurn in the reverse order of 'save time', so it's good
-        # TODO assert for that?
+        logger = get_logger()
+        emitted: Set[Sid] = set()
+        for f, r in self.raw():
+            # default sort order seems to return in the reverse order of 'save time', which makes sense to preserve
+            saved = list(reversed(r['saved']))
+            chunk = len(saved)
+            uniq = 0
+            for s in saved:
+                sid = s['id']
+                if sid in emitted:
+                    continue
+                uniq += 1
+
+                created = pytz.utc.localize(datetime.utcfromtimestamp(s['created_utc']))
+                # TODO need permalink
+                # url = get_some(s, 'link_permalink', 'url') # this was original url...
+                title = s.get('link_title', s.get('title')); assert title is not None
+                yield Save(
+                    created=created,
+                    title=title,
+                    sid=sid,
+                    json=s,
+                )
+                emitted.add(sid)
+            logger.debug('finished processing %s: %4d/%4d new saves; total: %d', f, uniq, chunk, len(emitted))
 
     # TODO add other things, e.g. upvotes/comments etc
 
 
-# TODO hmm. apparently decompressing takes quite a bit of time...
-
-
 def demo(dal: DAL):
     print("Saved posts:")
-    saved = list(dal.saved())
-
-    for s in saved:
+    for s in dal.saved():
         print(s.created, s.url, s.title)
     # TODO some pandas?
 
     from collections import Counter
+    saved = list(dal.saved())
     c = Counter([s.subreddit for s in saved])
     from pprint import pprint
     print("Your most saved subreddits:")
