@@ -1,0 +1,77 @@
+Export your personal Reddit data: saves, upvotes, submissions etc. as JSON.
+
+* Setting up
+1. =pip3 install --user -r requirements.txt=
+2. To use the API, you need to register a [[https://www.reddit.com/prefs/apps][custom 'personal script' app]] and get =client_id= and =client_secret= parameters.
+ 
+   See more [[https://praw.readthedocs.io/en/latest/getting_started/authentication.html][here]].
+3. To access user's personal data (e.g. saved posts/comments), Reddit API also requires =username= and =password=.
+
+   Yes, unfortunately it wants your plaintext Reddit password, you can read more about it [[https://praw.readthedocs.io/en/latest/getting_started/quick_start.html#authorized-reddit-instances][here]].
+   
+
+* Exporting
+
+#+begin_src python :results drawer :exports results 
+import export; return export.make_parser().epilog
+#+end_src
+
+#+RESULTS:
+:results:
+
+Usage:
+
+*Recommended*: create =secrets.py= keeping your api parameters, e.g.:
+
+
+: username = "USERNAME"
+: password = "PASSWORD"
+: client_id = "CLIENT_ID"
+: client_secret = "CLIENT_SECRET"
+
+
+After that, use:
+
+: ./export.py --secrets /path/to/secrets.py
+
+That way you type less and have control over where you keep your plaintext secrets.
+
+*Alternatively*, you can pass parameters directly, e.g.
+
+: ./export.py --username <username> --password <password> --client_id <client_id> --client_secret <client_secret>
+
+However, this is verbose and prone to leaking your keys/tokens/passwords in shell history.
+
+    
+You can also import ~export.py~ as a module and call ~get_json~ function directly to get raw JSON.
+        
+
+I *highly* recommend checking exported files at least once just to make sure they contain everything you expect from your export. If not, please feel free to ask or raise an issue!
+    
+:end:
+
+* API limitations
+
+*WARNING*: reddit API [[https://www.reddit.com/r/redditdev/comments/61z088/sample_more_than_1000_submissions_within_subreddit][limits your queries to 1000 entries]].
+
+I *highly* recommend to back up regularly and keep old exports. Easy way to achieve it is command like this: 
+
+: ./export --secrets /path/to/secrets.py >"export-$(date -I).json"
+
+Or, you can use [[https://github.com/karlicoss/arctee][arctee]] that automates this.
+
+# TODO link to exports post?
+# TODO link how DAL part can merge them together
+
+Check out these links if you're interested in getting older data that's inaccessible by API:
+
+- [[https://www.reddit.com/r/DataHoarder/comments/d0hjs7/reddit_takeout_export_your_account_data_as_json/ezbbcxe][comment]] by /u/binkarus
+- [[https://www.reddit.com/r/ideasfortheadmins/wiki/faq#wiki_can_we_have_a_way_to_download_our_entire_history_even_though_reddit_cuts_off_at_a_certain_point.3F][Reddit admis]] say that the rationale behind the API limitation is performance and caching
+- perhaps you can request all of your data under [[https://www.reddit.com/r/DataHoarder/comments/d0hjs7/reddit_takeout_export_your_account_data_as_json/eza0nsx][GDPR]]? I haven't tried that personally though.
+- [[https://pushshift.io][pushshift]] can potentially help you retrieve old data
+
+  
+* Example output
+See [[file:example-output.json][example-output.json]], it's got some example data you might find in your data export. I've cleaned it up a bit as it's got lots of different fields many of which are probably not relevant.
+
+However, this is pretty API dependent and changes all the time, so better check with [[https://www.reddit.com/dev/api][Reddit API]] if you are looking to something specific.

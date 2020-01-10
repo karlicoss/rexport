@@ -94,9 +94,7 @@ def get_json(**params):
 
 
 def main():
-    from export_helper import setup_parser
-    parser = argparse.ArgumentParser("Tool to export your personal reddit data")
-    setup_parser(parser=parser, params=['username', 'password', 'client_id', 'client_secret'])
+    parser = make_parser()
     args = parser.parse_args()
 
     params = args.params
@@ -105,6 +103,24 @@ def main():
     j = get_json(**params)
     js = json.dumps(j, ensure_ascii=False, indent=1)
     dumper(js)
+
+
+def make_parser():
+    from export_helper import setup_parser, Parser
+    parser = Parser('Export your personal Reddit data: saves, upvotes, submissions etc. as JSON.')
+    setup_parser(
+        parser=parser,
+        params=[
+            'username',
+            'password',
+            'client_id',
+            'client_secret',
+        ], extra_usage='''
+You can also import ~export.py~ as a module and call ~get_json~ function directly to get raw JSON.
+        ''',
+
+    )
+    return parser
 
 
 if __name__ == '__main__':
