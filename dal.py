@@ -19,6 +19,7 @@ Json = Dict[str, Any]
 
 Sid = str
 
+# TODO quite a bit of duplication... use dataclasses + mixin?
 class Save(NamedTuple):
     created: datetime
     title: str
@@ -33,16 +34,11 @@ class Save(NamedTuple):
 
     @property
     def url(self) -> str:
-        pl = self.raw['permalink']
-        return reddit(pl)
+        return reddit(self.raw['permalink'])
 
     @property
     def text(self) -> str:
-        bb = self.raw.get('body', None)
-        st = self.raw.get('selftext', None)
-        if bb is not None and st is not None:
-            raise RuntimeError(f'wtf, both body and selftext are not None: {bb}; {st}')
-        return bb or st
+        return get_text(self.raw)
 
     @property
     def subreddit(self) -> str:
@@ -58,16 +54,63 @@ class Comment(NamedTuple):
 
     @property
     def url(self) -> str:
-        pl = self.raw['permalink']
-        return reddit(pl)
+        return reddit(self.raw['permalink'])
 
     @property
     def text(self) -> str:
         return self.raw['body']
 
 
+class Submission(NamedTuple):
+    raw: Json
+
+    @property
+    def created(self) -> datetime:
+        return make_dt(self.raw['created_utc'])
+
+    @property
+    def url(self) -> str:
+        return reddit(self.raw['permalink'])
+
+    @property
+    def text(self) -> str:
+        return get_text(self.raw)
+
+    @property
+    def title(self) -> str:
+        return self.raw['title']
+
+
+class Upvote(NamedTuple):
+    raw: Json
+
+    @property
+    def created(self) -> datetime:
+        return make_dt(self.raw['created_utc'])
+
+    @property
+    def url(self) -> str:
+        return reddit(self.raw['permalink'])
+
+    @property
+    def text(self) -> str:
+        return get_text(self.raw)
+
+    @property
+    def title(self) -> str:
+        return self.raw['title']
+
+
 def reddit(suffix: str) -> str:
     return 'https://reddit.com' + suffix
+
+
+def get_text(raw: Json) -> str:
+    bb = raw.get('body', None)
+    st = raw.get('selftext', None)
+    if bb is not None and st is not None:
+        raise RuntimeError(f'wtf, both body and selftext are not None: {bb}; {st}')
+    return bb or st
 
 
 def make_dt(ts: float) -> datetime:
@@ -103,7 +146,7 @@ class DAL:
 
                 yield raw
                 emitted.add(eid)
-            logger.warning('%8s: finished processing %s: %4d/%4d new; total: %d', what, f, uniq, chunk, len(emitted))
+            logger.debug('%8s: finished processing %s: %4d/%4d new; total: %d', what, f, uniq, chunk, len(emitted))
 
 
     def saved(self) -> Iterator[Save]:
@@ -124,7 +167,17 @@ class DAL:
         for raw in self._accumulate(what='comments'):
             yield Comment(raw)
 
-    # TODO add other things, e.g. upvotes/comments etc
+
+    def submissions(self) -> Iterator[Submission]:
+        # TODO for submissions, makes sense to update (e.g. for upvotes)
+        for raw in self._accumulate(what='submissions'):
+            yield Submission(raw)
+
+
+    def upvoted(self) -> Iterator[Upvote]:
+        for raw in self._accumulate(what='upvoted'):
+            yield Upvote(raw)
+
 
 
 def demo(dal: DAL):
