@@ -75,3 +75,38 @@ Check out these links if you're interested in getting older data that's inaccess
 See [[file:example-output.json][example-output.json]], it's got some example data you might find in your data export. I've cleaned it up a bit as it's got lots of different fields many of which are probably not relevant.
 
 However, this is pretty API dependent and changes all the time, so better check with [[https://www.reddit.com/dev/api][Reddit API]] if you are looking to something specific.
+
+
+* Using data
+  
+#+begin_src python :results drawer :exports results 
+import dal_helper; return dal_helper.make_parser().epilog
+#+end_src
+
+#+RESULTS:
+:results:
+
+You can use =dal.py= (stands for "Data Access/Abstraction Layer") to access your exported data, even offline.
+I elaborate on motivation behind it [[https://beepb00p.xyz/exports.html#dal][here]].
+
+- main usecase is to be imported as python module to allow for *programmatic access* to your data.
+
+  You can find some inspiration in [[https://beepb00p.xyz/mypkg.html][=my.=]] package that I'm using as an API to all my personal data.
+
+- to test it against your export, simply run: ~./dal.py --source /path/to/export~
+
+- you can also try it interactively: ~./dal.py --source /path/to/export --interactive~
+
+:end:
+
+Example output:
+
+: Your most saved subreddits:
+: [('orgmode', 50),
+:  ('emacs', 36),
+:  ('QuantifiedSelf', 33),
+:  ('AskReddit', 33),
+:  ('selfhosted', 29)]
+
+
+

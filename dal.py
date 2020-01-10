@@ -1,16 +1,13 @@
 #!/usr/bin/env python3
 from pathlib import PurePath, Path
-from typing import List, Dict, Union, Iterable, Iterator, NamedTuple, Any, Sequence, Optional
+from typing import List, Dict, Union, Iterator, NamedTuple, Any, Sequence, Optional
 import json
-from functools import lru_cache
-from collections import OrderedDict
 from pathlib import Path
-import re
 from datetime import datetime
-from multiprocessing import Pool
 import logging
 
 import pytz
+
 
 def get_logger():
     return logging.getLogger('rexport')
@@ -49,57 +46,57 @@ class Save(NamedTuple):
         return self.json['subreddit']['display_name']
 
 
+def reddit(suffix: str) -> str:
+    return 'https://reddit.com' + suffix
 
-class Model:
+
+class DAL:
     def __init__(self, sources: Sequence[PathIsh]) -> None:
         pathify = lambda s: s if isinstance(s, Path) else Path(s)
         self.sources = list(map(pathify, sources))
 
     def raw(self) -> Json:
         f = max(self.sources)
-        # TODO merge them properly?
+        # TODO FIXME merge them properly?
         with f.open() as fo:
             return json.load(fo)
 
-    def saved(self) -> List[Save]:
-        def it():
-            for s in self.raw()['saved']:
-                created = pytz.utc.localize(datetime.utcfromtimestamp(s['created_utc']))
-                # TODO need permalink
-                # url = get_some(s, 'link_permalink', 'url') # this was original url...
-                title = s.get('link_title', s.get('title')); assert title is not None
-                yield Save(
-                    created=created,
-                    title=title,
-                    sid=s['id'],
-                    json=s,
-                )
+    def saved(self) -> Iterator[Save]:
+        for s in self.raw()['saved']:
+            created = pytz.utc.localize(datetime.utcfromtimestamp(s['created_utc']))
+            # TODO need permalink
+            # url = get_some(s, 'link_permalink', 'url') # this was original url...
+            title = s.get('link_title', s.get('title')); assert title is not None
+            yield Save(
+                created=created,
+                title=title,
+                sid=s['id'],
+                json=s,
+            )
         # default sort order seems to redurn in the reverse order of 'save time', so it's good
-        return list(it())
+        # TODO assert for that?
 
     # TODO add other things, e.g. upvotes/comments etc
 
 
 # TODO hmm. apparently decompressing takes quite a bit of time...
 
-# TODO heep this
-def reddit(suffix: str) -> str:
-    return 'https://reddit.com' + suffix
 
+def demo(dal: DAL):
+    print("Saved posts:")
+    saved = list(dal.saved())
 
-def main():
-    # TODO FIXME could benefit from some common code here
-    # for unpacking
-    # for get_files like in my. package
+    for s in saved:
+        print(s.created, s.url, s.title)
+    # TODO some pandas?
 
-    from argparse import ArgumentParser
-    p = ArgumentParser()
-    p.add_argument('--path', type=Path, required=True)
-    args = p.parse_args()
-    model = Model([args.path])
-    for s in model.saved():
-        print(s)
+    from collections import Counter
+    c = Counter([s.subreddit for s in saved])
+    from pprint import pprint
+    print("Your most saved subreddits:")
+    pprint(c.most_common(5))
 
 
 if __name__ == '__main__':
-    main()
+    import dal_helper
+    dal_helper.main(DAL=DAL, demo=demo)
