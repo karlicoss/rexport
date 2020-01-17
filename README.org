@@ -56,7 +56,7 @@ I *highly* recommend checking exported files at least once just to make sure the
 
 I *highly* recommend to back up regularly and keep old exports. Easy way to achieve it is command like this: 
 
-: ./export --secrets /path/to/secrets.py >"export-$(date -I).json"
+: ./export.py --secrets /path/to/secrets.py >"export-$(date -I).json"
 
 Or, you can use [[https://github.com/karlicoss/arctee][arctee]] that automates this.
 
