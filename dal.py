@@ -9,13 +9,17 @@ import logging
 import pytz
 
 
+if __name__ == '__main__':
+    # see dal_helper.setup for the explanation
+    import dal_helper # type: ignore[import]
+    dal_helper.fix_imports(globals())
+
+from . import dal_helper  # type: ignore[no-redef]
+from .dal_helper import PathIsh, Json
+
+
 def get_logger():
     return logging.getLogger('rexport')
-
-
-PathIsh = Union[str, PurePath]
-Json = Dict[str, Any]
-
 
 Sid = str
 

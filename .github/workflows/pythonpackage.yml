@@ -31,5 +31,4 @@ jobs:
     - name: Lint
       run: |
         pip install mypy pylint
-        mypy --namespace-packages --check-untyped *.py
-        pylint -E *.py
+        ./lint
