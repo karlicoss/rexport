@@ -129,7 +129,7 @@ class DAL:
 
     def raw(self):
         for f in sorted(self.sources):
-            with f.open() as fo:
+            with f.open(encoding="utf-8") as fo:
                 yield f, json.load(fo)
 
 

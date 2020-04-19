@@ -62,7 +62,7 @@ def setup_parser(parser: argparse.ArgumentParser, *, params: Sequence[str], extr
                 sys.stdout.write(data)
 
             def dump_to_file(data):
-                with output_path.open('w') as fo:
+                with output_path.open('w', encoding='utf-8') as fo:
                     fo.write(data)
                 print('saved data to {output_path}'.format(output_path=output_path), file=sys.stderr)
 
