@@ -29,6 +29,11 @@ Usage:
 : client_id = "CLIENT_ID"
 : client_secret = "CLIENT_SECRET"
 
+If you have two-factor authentication enabled, append the six-digit 2FA token to the password, separated by a colon:
+
+: password = "PASSWORD:343642"
+
+The token will, however, be short-lived.
 
 After that, use:
 
