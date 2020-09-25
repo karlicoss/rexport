@@ -1,7 +1,16 @@
+#+begin_src python :dir src :results drawer :exports results
+import rexport.export as E; return E.make_parser().prog
+#+end_src
+
+#+RESULTS:
+:results:
 Export your personal Reddit data: saves, upvotes, submissions etc. as JSON.
+:end:
 
 * Setting up
-1. =pip3 install --user -r requirements.txt=
+1. The easiest way is =pip3 install --user git+https://github.com/karlicoss/rexport=.
+
+   Alternatively, use =git clone --recursive=, or =git pull && git submodules update --init=. After that, you can use =pip3 install --editable=.
 2. To use the API, you need to register a [[https://www.reddit.com/prefs/apps][custom 'personal script' app]] and get =client_id= and =client_secret= parameters.
  
    See more [[https://praw.readthedocs.io/en/latest/getting_started/authentication.html][here]].
@@ -12,8 +21,8 @@ Export your personal Reddit data: saves, upvotes, submissions etc. as JSON.
 
 * Exporting
 
-#+begin_src python :results drawer :exports results 
-import export; return export.make_parser().epilog
+#+begin_src python :dir src :results drawer :exports results
+import rexport.export as E; return E.make_parser().epilog
 #+end_src
 
 #+RESULTS:
@@ -37,22 +46,22 @@ The token will, however, be short-lived.
 
 After that, use:
 
-: ./export.py --secrets /path/to/secrets.py
+: python3 -m rexport.export --secrets /path/to/secrets.py
 
 That way you type less and have control over where you keep your plaintext secrets.
 
 *Alternatively*, you can pass parameters directly, e.g.
 
-: ./export.py --username <username> --password <password> --client_id <client_id> --client_secret <client_secret>
+: python3 -m rexport.export --username <username> --password <password> --client_id <client_id> --client_secret <client_secret>
 
 However, this is verbose and prone to leaking your keys/tokens/passwords in shell history.
 
-    
+
 You can also import ~export.py~ as a module and call ~get_json~ function directly to get raw JSON.
-        
+
 
 I *highly* recommend checking exported files at least once just to make sure they contain everything you expect from your export. If not, please feel free to ask or raise an issue!
-    
+
 :end:
 
 * API limitations
@@ -61,7 +70,7 @@ I *highly* recommend checking exported files at least once just to make sure the
 
 I *highly* recommend to back up regularly and keep old exports. Easy way to achieve it is command like this: 
 
-: ./export.py --secrets /path/to/secrets.py >"export-$(date -I).json"
+: python3 -m rexport.export --secrets /path/to/secrets.py >"export-$(date -I).json"
 
 Or, you can use [[https://github.com/karlicoss/arctee][arctee]] that automates this.
 
@@ -73,7 +82,7 @@ Check out these links if you're interested in getting older data that's inaccess
 - [[https://www.reddit.com/r/DataHoarder/comments/d0hjs7/reddit_takeout_export_your_account_data_as_json/ezbbcxe][comment]] by /u/binkarus
 - [[https://www.reddit.com/r/ideasfortheadmins/wiki/faq#wiki_can_we_have_a_way_to_download_our_entire_history_even_though_reddit_cuts_off_at_a_certain_point.3F][Reddit admis]] say that the rationale behind the API limitation is performance and caching
 - perhaps you can request all of your data under [[https://www.reddit.com/r/DataHoarder/comments/d0hjs7/reddit_takeout_export_your_account_data_as_json/eza0nsx][GDPR]]? I haven't tried that personally though.
-- [[https://pushshift.io][pushshift]] can potentially help you retrieve old data
+- [[https://pushshift.io][pushshift]] can help you retrieve old data. You can use [[https://github.com/seanbreckenridge/pushshift_comment_export][seanbreckeridge/pushshift_comment_export]] to get the data.
 
   
 * Example output
@@ -82,25 +91,25 @@ See [[file:example-output.json][example-output.json]], it's got some example dat
 However, this is pretty API dependent and changes all the time, so better check with [[https://www.reddit.com/dev/api][Reddit API]] if you are looking to something specific.
 
 
-* Using data
+* Using the data
   
-#+begin_src python :results drawer :exports results 
-import dal_helper; return dal_helper.make_parser().epilog
+#+begin_src python :dir src  :results drawer :exports results
+import rexport.exporthelpers.dal_helper as D; return D.make_parser().epilog
 #+end_src
 
 #+RESULTS:
 :results:
 
-You can use =dal.py= (stands for "Data Access/Abstraction Layer") to access your exported data, even offline.
+You can use =rexport.dal= (stands for "Data Access/Abstraction Layer") to access your exported data, even offline.
 I elaborate on motivation behind it [[https://beepb00p.xyz/exports.html#dal][here]].
 
 - main usecase is to be imported as python module to allow for *programmatic access* to your data.
 
   You can find some inspiration in [[https://beepb00p.xyz/mypkg.html][=my.=]] package that I'm using as an API to all my personal data.
 
-- to test it against your export, simply run: ~./dal.py --source /path/to/export~
+- to test it against your export, simply run: ~python3 -m rexport.dal --source /path/to/export~
 
-- you can also try it interactively: ~./dal.py --source /path/to/export --interactive~
+- you can also try it interactively: ~python3 -m rexport.dal --source /path/to/export --interactive~
 
 :end:
 
