@@ -100,8 +100,8 @@ def get_json(**params):
     return Exporter(**params).export_json()
 
 
-def main():
-    from export_helper import setup_logger
+def main() -> None:
+    from .exporthelpers.logging_helper import setup_logger
     setup_logger(get_logger(), level='DEBUG')
     # https://praw.readthedocs.io/en/latest/getting_started/logging.html
     setup_logger('prawcore', level='DEBUG')
@@ -118,7 +118,7 @@ def main():
 
 
 def make_parser():
-    from export_helper import setup_parser, Parser
+    from .exporthelpers.export_helper import setup_parser, Parser
     parser = Parser('Export your personal Reddit data: saves, upvotes, submissions etc. as JSON.')
     setup_parser(
         parser=parser,

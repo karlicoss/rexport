@@ -1,2 +1,0 @@
-pytz
-praw # used to benefit from pagination and rate limiting
