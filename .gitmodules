@@ -1,3 +1,6 @@
 [submodule "src/rexport/exporthelpers"]
 	path = src/rexport/exporthelpers
 	url = https://github.com/karlicoss/exporthelpers.git
+[submodule "testdata/go-reddit"]
+	path = testdata/go-reddit
+	url = https://github.com/vartanbeno/go-reddit
