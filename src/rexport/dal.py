@@ -180,6 +180,41 @@ class DAL:
 
 
 
+from contextlib import contextmanager as ctx
+@ctx
+def _test_data():
+    tdata = Path(__file__).absolute().parent.parent.parent / 'testdata'
+
+    def get(what: str):
+        [subreddits_file] = tdata.rglob(what)
+        for x in json.loads(subreddits_file.read_text())['data']['children']:
+            yield x['data']
+
+    # todo use more data from this repo
+    j = dict(
+        subreddits=list(get('subreddit/list.json')),
+        comments  =list(get('user/comments.json' )),
+    )
+
+    from tempfile import TemporaryDirectory
+    with TemporaryDirectory() as td:
+        tdir = Path(td)
+        jfile = tdir / 'data.json'
+        jfile.write_text(json.dumps(j))
+        yield [jfile]
+
+
+
+def test():
+    with _test_data() as files:
+        dal = DAL(files)
+
+        subs = list(dal._accumulate(what='subreddits'))
+        assert len(subs) == 3
+
+        assert len(list(dal.comments())) > 0
+
+
 def demo(dal: DAL):
     print("Your comments:")
     for s in dal.comments():
