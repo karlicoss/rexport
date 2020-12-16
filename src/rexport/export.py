@@ -6,7 +6,7 @@ from typing import NamedTuple, List, Dict
 
 # pip install praw
 import praw # type: ignore
-from praw.models import Redditor, Subreddit, Submission, Comment, Multireddit, Message # type: ignore
+from praw.models import Redditor, Subreddit, Submission, Comment, Multireddit, Message, PollData, PollOption # type: ignore
 
 
 def get_logger():
@@ -51,6 +51,8 @@ def jsonify(d):
             Submission,
             Comment,
             Message,
+            PollData,
+            PollOption
     )): # TODO eh, hopefully it can't go into infinite loop...
         return jsonify(vars(d))
 
