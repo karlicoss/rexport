@@ -10,7 +10,7 @@ Export your personal Reddit data: saves, upvotes, submissions etc. as JSON.
 * Setting up
 1. The easiest way is =pip3 install --user git+https://github.com/karlicoss/rexport=.
 
-   Alternatively, use =git clone --recursive=, or =git pull && git submodules update --init=. After that, you can use =pip3 install --editable=.
+   Alternatively, use =git clone --recursive=, or =git pull && git submodule update --init=. After that, you can use =pip3 install --editable .=.
 2. To use the API, you need to register a [[https://www.reddit.com/prefs/apps][custom 'personal script' app]] and get =client_id= and =client_secret= parameters.
  
    See more [[https://praw.readthedocs.io/en/latest/getting_started/authentication.html][here]].
