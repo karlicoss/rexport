@@ -6,7 +6,7 @@ from typing import NamedTuple, List, Dict
 
 # pip install praw
 import praw # type: ignore
-from praw.models import Redditor, Subreddit, Submission, Comment, Multireddit, Message, PollData, PollOption # type: ignore
+from praw.models import Redditor, Subreddit, Submission, Comment, Multireddit, Message, PollData, PollOption, UserSubreddit # type: ignore
 
 
 def get_logger():
@@ -26,12 +26,22 @@ class RedditData(NamedTuple):
     inbox: List[Dict]
 
 
-IGNORED_KEYS = {
-    'body_html',
-    'selftext_html',
-    'description_html',
-    'preview',
-}
+def ignore_item(key: str, value) -> bool:
+    if callable(value):
+        return True
+
+    if key.startswith('__'):
+        return True
+
+    if key in {
+        'body_html',
+        'selftext_html',
+        'description_html',
+        'preview',
+    }:
+        return True
+
+    return False
 
 # sadly praw doesn't keep raw json data :( https://github.com/praw-dev/praw/issues/830
 def jsonify(d):
@@ -42,7 +52,7 @@ def jsonify(d):
         return [jsonify(x) for x in d]
 
     if isinstance(d, dict):
-        return {k: jsonify(v) for k, v in d.items() if k not in IGNORED_KEYS}
+        return {k: jsonify(v) for k, v in d.items() if not ignore_item(k, v)}
 
     if isinstance(d, (
             Redditor,
@@ -52,7 +62,8 @@ def jsonify(d):
             Comment,
             Message,
             PollData,
-            PollOption
+            PollOption,
+            UserSubreddit,
     )): # TODO eh, hopefully it can't go into infinite loop...
         return jsonify(vars(d))
 
