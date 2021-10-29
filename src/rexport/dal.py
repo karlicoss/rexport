@@ -27,9 +27,15 @@ class Save(NamedTuple):
     def __hash__(self):
         return hash(self.sid)
 
+
+    @property
+    def id(self) -> str:
+        return self.raw['id']
+
+    # keep here for backwards compatability
     @property
     def sid(self) -> Sid:
-        return self.raw['id']
+        return self.id
 
     @property
     def url(self) -> str:
@@ -48,6 +54,10 @@ class Comment(NamedTuple):
     raw: Json
 
     @property
+    def id(self) -> str:
+        return self.raw['id']
+
+    @property
     def created(self) -> datetime:
         return make_dt(self.raw['created_utc'])
 
@@ -62,6 +72,10 @@ class Comment(NamedTuple):
 
 class Submission(NamedTuple):
     raw: Json
+
+    @property
+    def id(self) -> str:
+        return self.raw['id']
 
     @property
     def created(self) -> datetime:
@@ -82,6 +96,10 @@ class Submission(NamedTuple):
 
 class Upvote(NamedTuple):
     raw: Json
+
+    @property
+    def id(self) -> str:
+        return self.raw['id']
 
     @property
     def created(self) -> datetime:
