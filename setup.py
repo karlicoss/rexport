@@ -4,6 +4,18 @@
 from setuptools import setup, find_namespace_packages # type: ignore
 
 
+
+EXPORT_DEPS = [
+    'pytz',
+]
+
+DAL_DEPS = [
+    'praw',  # Reddit API
+]
+
+ALL_DEPS = sorted({*EXPORT_DEPS, *DAL_DEPS})
+
+
 def main() -> None:
     # works with both ordinary and namespace packages
     pkgs = find_namespace_packages('src')
@@ -27,13 +39,17 @@ def main() -> None:
 
         ## ^^^ this should be mostly automatic and not requiring any changes
 
-        install_requires=[
-            'pytz',
-            'praw', # Reddit API
-        ],
+        install_requires=ALL_DEPS,
         extras_require={
+            'dal': DAL_DEPS,
+            'export': EXPORT_DEPS,
             'testing': ['pytest'],
-            'linting': ['pytest', 'mypy', 'lxml'], # lxml for mypy coverage report
+            'linting': [
+                'pytest',
+                'mypy',
+                'lxml',  # lxml for mypy coverage report
+                'orjson',  # optional packages
+            ],
         },
     )
 
