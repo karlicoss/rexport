@@ -1,15 +1,12 @@
 #!/usr/bin/env python3
-from pathlib import PurePath, Path
-from typing import List, Dict, Union, Iterator, NamedTuple, Any, Sequence, Optional, Set
+import contextlib
 import json
 from pathlib import Path
-from datetime import datetime
-import logging
-
-import pytz
+from typing import Iterator, NamedTuple, Sequence, Set
+from datetime import datetime, timezone
 
 from .exporthelpers import dal_helper, logging_helper
-from .exporthelpers.dal_helper import PathIsh, Json
+from .exporthelpers.dal_helper import PathIsh, Json, json_items, datetime_aware, pathify
 
 
 def get_logger():
@@ -20,7 +17,7 @@ Sid = str
 
 # TODO quite a bit of duplication... use dataclasses + mixin?
 class Save(NamedTuple):
-    created: datetime
+    created: datetime_aware
     title: str
     raw: Json
 
@@ -58,7 +55,7 @@ class Comment(NamedTuple):
         return self.raw['id']
 
     @property
-    def created(self) -> datetime:
+    def created(self) -> datetime_aware:
         return make_dt(self.raw['created_utc'])
 
     @property
@@ -78,7 +75,7 @@ class Submission(NamedTuple):
         return self.raw['id']
 
     @property
-    def created(self) -> datetime:
+    def created(self) -> datetime_aware:
         return make_dt(self.raw['created_utc'])
 
     @property
@@ -102,7 +99,7 @@ class Upvote(NamedTuple):
         return self.raw['id']
 
     @property
-    def created(self) -> datetime:
+    def created(self) -> datetime_aware:
         return make_dt(self.raw['created_utc'])
 
     @property
@@ -130,42 +127,37 @@ def get_text(raw: Json) -> str:
     return bb or st
 
 
-def make_dt(ts: float) -> datetime:
-    return pytz.utc.localize(datetime.utcfromtimestamp(ts))
+def make_dt(ts: float) -> datetime_aware:
+    return datetime.fromtimestamp(ts, tz=timezone.utc)
 
 
 class DAL:
     def __init__(self, sources: Sequence[PathIsh]) -> None:
-        # TODO move to dal_helper?
-        pathify = lambda s: s if isinstance(s, Path) else Path(s)
         self.sources = list(map(pathify, sources))
 
-
+    # not sure how useful it is, but keeping for compatibility
     def raw(self):
-        for f in sorted(self.sources):
-            with f.open(encoding="utf-8") as fo:
+        for f in self.sources:
+            with f.open() as fo:
                 yield f, json.load(fo)
 
+    def _raw_json(self, *, what: str):
+        logger = get_logger()
+        for f in self.sources:
+            logger.debug(f'processing {f}')
+            # default sort order seems to return in the reverse order of 'save time', which makes sense to preserve
+            # TODO reversing should probably be responsibility of HPI?
+            yield from reversed(list(json_items(f, what)))
 
     def _accumulate(self, *, what: str) -> Iterator[Json]:
-        logger = get_logger()
         emitted: Set[str] = set()
-        for f, r in self.raw():
-            # default sort order seems to return in the reverse order of 'save time', which makes sense to preserve
-            # TODO careful, perhaps accept sort_by or something?
-            raws = list(reversed(r[what]))
-            chunk = len(raws)
-            uniq = 0
-            for raw in raws:
-                eid = raw['id']
-                if eid in emitted:
-                    continue
-                uniq += 1
-
-                yield raw
-                emitted.add(eid)
-            logger.debug('%8s: finished processing %s: %4d/%4d new; total: %d', what, f, uniq, chunk, len(emitted))
-
+        # todo use unique_everseen?
+        for raw in self._raw_json(what=what):
+            eid = raw['id']
+            if eid in emitted:
+                continue
+            emitted.add(eid)
+            yield raw
 
     def saved(self) -> Iterator[Save]:
         for s in self._accumulate(what='saved'):
@@ -198,8 +190,7 @@ class DAL:
 
 
 
-from contextlib import contextmanager as ctx
-@ctx
+@contextlib.contextmanager
 def _test_data():
     tdata = Path(__file__).absolute().parent.parent.parent / 'testdata'
 
@@ -222,8 +213,7 @@ def _test_data():
         yield [jfile]
 
 
-
-def test():
+def test() -> None:
     with _test_data() as files:
         dal = DAL(files)
 
@@ -233,7 +223,7 @@ def test():
         assert len(list(dal.comments())) > 0
 
 
-def demo(dal: DAL):
+def demo(dal: DAL) -> None:
     print("Your comments:")
     for s in dal.comments():
         print(s.created, s.url)
