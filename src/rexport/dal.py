@@ -1,29 +1,30 @@
 #!/usr/bin/env python3
 import contextlib
+from dataclasses import dataclass
+from datetime import datetime, timezone
 import json
 from pathlib import Path
-from typing import Iterator, NamedTuple, Sequence, Set
-from datetime import datetime, timezone
+from typing import Iterator, Sequence, Set
 
 from .exporthelpers import dal_helper, logging_helper
 from .exporthelpers.dal_helper import PathIsh, Json, json_items, datetime_aware, pathify
 
 
-def get_logger():
-    return logging_helper.logger('rexport')
+logger = logging_helper.make_logger(__name__)
 
 
 Sid = str
 
+
 # TODO quite a bit of duplication... use dataclasses + mixin?
-class Save(NamedTuple):
+@dataclass
+class Save:
     created: datetime_aware
     title: str
     raw: Json
 
     def __hash__(self):
         return hash(self.sid)
-
 
     @property
     def id(self) -> str:
@@ -47,7 +48,8 @@ class Save(NamedTuple):
         return self.raw['subreddit']['display_name']
 
 
-class Comment(NamedTuple):
+@dataclass
+class Comment:
     raw: Json
 
     @property
@@ -67,7 +69,8 @@ class Comment(NamedTuple):
         return self.raw['body']
 
 
-class Submission(NamedTuple):
+@dataclass
+class Submission:
     raw: Json
 
     @property
@@ -91,7 +94,8 @@ class Submission(NamedTuple):
         return self.raw['title']
 
 
-class Upvote(NamedTuple):
+@dataclass
+class Upvote:
     raw: Json
 
     @property
@@ -113,6 +117,71 @@ class Upvote(NamedTuple):
     @property
     def title(self) -> str:
         return self.raw['title']
+
+
+@dataclass
+class Subreddit:
+    raw: Json
+
+    @property
+    def id(self) -> str:
+        return self.raw['id']
+
+    @property
+    def url(self) -> str:
+        return reddit(self.raw['url'])
+
+    @property
+    def title(self) -> str:
+        return self.raw['title']
+
+
+@dataclass
+class Multireddit:
+    raw: Json
+
+    @property
+    def path(self) -> str:
+        # multireddits don't have an id? so it kinda serves as such..
+        return self.raw['path']
+
+    @property
+    def name(self) -> str:
+        return self.raw['name']
+
+    @property
+    def subreddits(self) -> Sequence[str]:
+        # ugh. subreddits in multireddit list don't have all the other fields like id and title..
+        return tuple(r['_path'] for r in self.raw['subreddits'])
+
+
+@dataclass
+class Profile:
+    raw: Json
+
+    @property
+    def id(self) -> str:
+        return self.raw['id']
+
+    @property
+    def url(self) -> str:
+        return reddit(self.raw['subreddit']['url'])
+
+    @property
+    def name(self) -> str:
+        return self.raw['name']
+
+    @property
+    def comment_karma(self) -> int:
+        return self.raw['comment_karma']
+
+    @property
+    def link_karma(self) -> int:
+        return self.raw['link_karma']
+
+    @property
+    def total_karma(self) -> int:
+        return self.raw['total_karma']
 
 
 def reddit(suffix: str) -> str:
@@ -134,6 +203,7 @@ def make_dt(ts: float) -> datetime_aware:
 class DAL:
     def __init__(self, sources: Sequence[PathIsh]) -> None:
         self.sources = list(map(pathify, sources))
+        self.enlighten = logging_helper.get_enlighten()
 
     # not sure how useful it is, but keeping for compatibility
     def raw(self):
@@ -141,19 +211,21 @@ class DAL:
             with f.open() as fo:
                 yield f, json.load(fo)
 
-    def _raw_json(self, *, what: str):
-        logger = get_logger()
+    def _raw_json(self, *, what: str) -> Iterator[Json]:
+        pbar = self.enlighten.counter(total=len(self.sources), desc=f'{__name__}[{what}]', unit='files')
         for f in self.sources:
-            logger.debug(f'processing {f}')
+            # TODO maybe if enlighten is used, this should be debug instead? so logging isn't too verbose
+            logger.info(f'processing {f}')
             # default sort order seems to return in the reverse order of 'save time', which makes sense to preserve
             # TODO reversing should probably be responsibility of HPI?
             yield from reversed(list(json_items(f, what)))
+            pbar.update()
 
-    def _accumulate(self, *, what: str) -> Iterator[Json]:
+    def _accumulate(self, *, what: str, key: str = 'id') -> Iterator[Json]:
         emitted: Set[str] = set()
         # todo use unique_everseen?
         for raw in self._raw_json(what=what):
-            eid = raw['id']
+            eid = raw[key]
             if eid in emitted:
                 continue
             emitted.add(eid)
@@ -164,30 +236,42 @@ class DAL:
             created = make_dt(s['created_utc'])
             # TODO need permalink
             # url = get_some(s, 'link_permalink', 'url') # this was original url...
-            title = s.get('link_title', s.get('title')); assert title is not None
+            title = s.get('link_title', s.get('title'))
+            assert title is not None, s
             yield Save(
                 created=created,
                 title=title,
                 raw=s,
             )
 
-
     def comments(self) -> Iterator[Comment]:
         # TODO makes sense to update them perhaps?
         for raw in self._accumulate(what='comments'):
             yield Comment(raw)
-
 
     def submissions(self) -> Iterator[Submission]:
         # TODO for submissions, makes sense to update (e.g. for upvotes)
         for raw in self._accumulate(what='submissions'):
             yield Submission(raw)
 
-
     def upvoted(self) -> Iterator[Upvote]:
         for raw in self._accumulate(what='upvoted'):
             yield Upvote(raw)
 
+    def subreddits(self) -> Iterator[Subreddit]:
+        for raw in self._accumulate(what='subreddits'):
+            yield Subreddit(raw)
+
+    def multireddits(self) -> Iterator[Multireddit]:
+        for raw in self._accumulate(what='multireddits', key='path'):
+            yield Multireddit(raw)
+
+    def profile(self) -> Profile:
+        # meh.. doesn't really conform to the rest of data which are iterables
+        last = max(self.sources)
+        with last.open() as fo:
+            j = json.load(fo)
+            return Profile(j['profile'])
 
 
 @contextlib.contextmanager
@@ -202,10 +286,11 @@ def _test_data():
     # todo use more data from this repo
     j = dict(
         subreddits=list(get('subreddit/list.json')),
-        comments  =list(get('user/comments.json' )),
+        comments=list(get('user/comments.json')),
     )
 
     from tempfile import TemporaryDirectory
+
     with TemporaryDirectory() as td:
         tdir = Path(td)
         jfile = tdir / 'data.json'
@@ -229,13 +314,15 @@ def demo(dal: DAL) -> None:
         print(s.created, s.url)
         sep = '\n |  '
         body = sep + sep.join(s.text.splitlines())
-        print(body) # TOD ??
+        print(body)
         print()
     # TODO some pandas?
 
     from collections import Counter
+
     c = Counter([s.subreddit for s in dal.saved()])
     from pprint import pprint
+
     print("Your most saved subreddits:")
     pprint(c.most_common(5))
 

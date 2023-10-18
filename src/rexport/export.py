@@ -1,29 +1,39 @@
 #!/usr/bin/env python3
-import argparse
 import json
-from pathlib import Path
 from typing import NamedTuple, List, Dict
 
-# pip install praw
-import praw # type: ignore
-from praw.models import Redditor, Subreddit, Submission, Comment, Multireddit, Message, PollData, PollOption, UserSubreddit # type: ignore
+import praw  # type: ignore[import-untyped]
+from praw.models import (  # type: ignore[import-untyped]
+    Comment,
+    Message,
+    Multireddit,
+    PollData,
+    PollOption,
+    Redditor,
+    Submission,
+    Subreddit,
+    UserSubreddit,
+)
+
+from .exporthelpers.export_helper import Json
+from .exporthelpers.logging_helper import setup_logger, make_logger
 
 
-def get_logger():
-    import logging
-    return logging.getLogger('rexport')
+logger = make_logger(__name__)
 
 
 class RedditData(NamedTuple):
-    profile: Dict
-    multireddits: List[Dict]
-    subreddits: List[Dict]
-    saved: List[Dict]
-    upvoted: List[Dict]
-    downvoted: List[Dict]
-    comments: List[Dict]
-    submissions: List[Dict]
-    inbox: List[Dict]
+    # fmt: off
+    profile     : Json
+    multireddits: List[Json]
+    subreddits  : List[Json]
+    saved       : List[Json]
+    upvoted     : List[Json]
+    downvoted   : List[Json]
+    comments    : List[Json]
+    submissions : List[Json]
+    inbox       : List[Json]
+    # fmt: on
 
 
 def ignore_item(key: str, value) -> bool:
@@ -43,6 +53,7 @@ def ignore_item(key: str, value) -> bool:
 
     return False
 
+
 # sadly praw doesn't keep raw json data :( https://github.com/praw-dev/praw/issues/830
 def jsonify(d):
     if isinstance(d, (str, float, int, bool, type(None))):
@@ -54,6 +65,7 @@ def jsonify(d):
     if isinstance(d, dict):
         return {k: jsonify(v) for k, v in d.items() if not ignore_item(k, v)}
 
+    # fmt: off
     if isinstance(d, (
             Redditor,
             Subreddit,
@@ -66,6 +78,7 @@ def jsonify(d):
             UserSubreddit,
     )): # TODO eh, hopefully it can't go into infinite loop...
         return jsonify(vars(d))
+    # fmt: on
 
     if isinstance(d, praw.Reddit):
         return None
@@ -74,7 +87,6 @@ def jsonify(d):
 
 
 def _extract(from_, **kwargs) -> List[Dict]:
-    logger = get_logger()
     logger.info('fetching %s', from_)
     return jsonify(list(from_(**kwargs)))
 
@@ -87,11 +99,12 @@ class Exporter:
     def _me(self):
         return self.api.user.me()
 
-    def extract_profile(self) -> Dict:
+    def extract_profile(self) -> Json:
         return jsonify(self._me)
 
-    def export_json(self):
+    def export_json(self) -> Json:
         rb = RedditData(
+            # fmt: off
             profile     =self.extract_profile(),
             multireddits=_extract(self.api.user.multireddits), # weird, multireddits has no limit
             subreddits  =_extract(self.api.user.subreddits, limit=None),
@@ -101,23 +114,22 @@ class Exporter:
             comments    =_extract(self._me.comments.new   , limit=None),
             submissions =_extract(self._me.submissions.new, limit=None),
             inbox       =_extract(self.api.inbox.all      , limit=None),
+            # fmt: on
         )
         return rb._asdict()
 
-    def export(self):
+    def export(self) -> Json:
         # keeping for backwards compatibility
         return self.export_json()
 
 
-def get_json(**params):
+def get_json(**params) -> Json:
     return Exporter(**params).export_json()
 
 
 def main() -> None:
-    from .exporthelpers.logging_helper import setup_logger
-    setup_logger(get_logger(), level='DEBUG')
     # https://praw.readthedocs.io/en/latest/getting_started/logging.html
-    setup_logger('prawcore', level='DEBUG')
+    setup_logger('prawcore', level='INFO')  # debug can be useful during development
 
     parser = make_parser()
     args = parser.parse_args()
@@ -132,6 +144,7 @@ def main() -> None:
 
 def make_parser():
     from .exporthelpers.export_helper import setup_parser, Parser
+
     parser = Parser('Export your personal Reddit data: saves, upvotes, submissions etc. as JSON.')
     setup_parser(
         parser=parser,
@@ -140,10 +153,10 @@ def make_parser():
             'password',
             'client_id',
             'client_secret',
-        ], extra_usage='''
+        ],
+        extra_usage='''
 You can also import ~export.py~ as a module and call ~get_json~ function directly to get raw JSON.
         ''',
-
     )
     return parser
 
