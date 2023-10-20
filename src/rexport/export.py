@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
+from datetime import datetime, timezone
 import json
-from typing import NamedTuple, List, Dict
+from pathlib import Path
+from types import new_class
+from typing import NamedTuple, List, Dict, Optional
 
 import praw  # type: ignore[import-untyped]
 from praw.models import (  # type: ignore[import-untyped]
@@ -92,8 +95,14 @@ def _extract(from_, **kwargs) -> List[Dict]:
 
 
 class Exporter:
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, previous: Optional[Path] = None, **kwargs) -> None:
         self.api = praw.Reddit(user_agent="rexport", *args, **kwargs)
+        if previous is not None:
+            from kompress import CPath  # type: ignore[import-not-found]
+            prev = CPath(previous)
+            self.prev_json = json.loads(prev.read_text())
+        else:
+            self.prev_json = None
 
     @property
     def _me(self):
@@ -116,15 +125,62 @@ class Exporter:
             inbox       =_extract(self.api.inbox.all      , limit=None),
             # fmt: on
         )
-        return rb._asdict()
+        res_dict = rb._asdict()
+        self._populate_first_exported(res_dict)
+        return res_dict
+
+    def _populate_first_exported(self, res_dict) -> None:
+        """
+        Basically reddit api doesn't return the date when entry was added
+        (e.g. actual time you've upvoted/downvoted/saved item etc)
+
+        So this is an attempt to at least infer it by comparing with a previous export
+
+        """
+        prev_json = self.prev_json
+        if prev_json is None:
+            return res_dict
+
+        now_ms_utc = datetime.utcnow().timestamp()
+
+        # otherwise populate with a guess for the time when entry was added
+        for k, v in res_dict.items():
+            if not isinstance(v, list):
+                continue
+
+            prev_by_id = {x.get('id'): x for x in prev_json[k]}
+            for item in v:
+                iid = item.get('id')
+                if iid is None:
+                    # just in case, defensive
+                    continue
+
+                prev_item = prev_by_id.get(iid)
+                FIRST_EXPORTED_KEY = 'rexport_first_exported_utc'
+                first_exported_utc: float
+
+                if prev_item is None:
+                    # we haven't seen it previously, so assuming it was just added
+                    first_exported_utc = now_ms_utc
+                    item[FIRST_EXPORTED_KEY] = first_exported_utc
+                else:
+                    prev_first_exported = prev_item.get(FIRST_EXPORTED_KEY)
+                    if prev_first_exported is not None:
+                        # if the item was in previous export and already was exported before, need to copy the timestamp
+                        first_exported_utc = prev_first_exported
+                        item[FIRST_EXPORTED_KEY] = first_exported_utc
+                    else:
+                        # we've seen item before, but it doesn't have the rexport timestamp...
+                        # not much we can do really, best to keep it intact
+                        pass
 
     def export(self) -> Json:
         # keeping for backwards compatibility
         return self.export_json()
 
 
-def get_json(**params) -> Json:
-    return Exporter(**params).export_json()
+def get_json(**kwargs) -> Json:
+    return Exporter(**kwargs).export_json()
 
 
 def main() -> None:
@@ -136,8 +192,9 @@ def main() -> None:
 
     params = args.params
     dumper = args.dumper
+    previous = args.previous
 
-    j = get_json(**params)
+    j = get_json(**params, previous=previous)
     js = json.dumps(j, ensure_ascii=False, indent=1)
     dumper(js)
 
@@ -158,6 +215,7 @@ def make_parser():
 You can also import ~export.py~ as a module and call ~get_json~ function directly to get raw JSON.
         ''',
     )
+    parser.add_argument('--previous', type=Path, required=False, help="Experimental argument to guess the timestamp when item was saved/upvoted etc.")
     return parser
 
 
