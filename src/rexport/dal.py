@@ -1,13 +1,15 @@
 #!/usr/bin/env python3
+from concurrent.futures import Executor
 import contextlib
 from dataclasses import dataclass
 from datetime import datetime, timezone
 import json
 from pathlib import Path
-from typing import Iterator, Sequence, Set
+from typing import Iterator, Optional, Sequence, Set
 
 from .exporthelpers import dal_helper, logging_helper
-from .exporthelpers.dal_helper import PathIsh, Json, json_items, datetime_aware, pathify
+from .exporthelpers.dal_helper import PathIsh, Json, datetime_aware, pathify
+from .utils import json_items_as_list, DummyFuture
 
 
 logger = logging_helper.make_logger(__name__)
@@ -201,8 +203,9 @@ def make_dt(ts: float) -> datetime_aware:
 
 
 class DAL:
-    def __init__(self, sources: Sequence[PathIsh]) -> None:
+    def __init__(self, sources: Sequence[PathIsh], *, cpu_pool: Optional[Executor] = None) -> None:
         self.sources = list(map(pathify, sources))
+        self.cpu_pool = cpu_pool
         self.enlighten = logging_helper.get_enlighten()
 
     # not sure how useful it is, but keeping for compatibility
@@ -212,14 +215,29 @@ class DAL:
                 yield f, json.load(fo)
 
     def _raw_json(self, *, what: str) -> Iterator[Json]:
-        pbar = self.enlighten.counter(total=len(self.sources), desc=f'{__name__}[{what}]', unit='files')
-        for f in self.sources:
+        progress_bar = self.enlighten.counter(total=len(self.sources), desc=f'{__name__}[{what}]', unit='files')
+
+        cpu_pool = self.cpu_pool
+
+        futures = []
+        for path in self.sources:
             # TODO maybe if enlighten is used, this should be debug instead? so logging isn't too verbose
-            logger.info(f'processing {f}')
+            logger.info(f'processing {path}')
+
+            if cpu_pool is not None:
+                future = cpu_pool.submit(json_items_as_list, path, what)
+            else:
+                future = DummyFuture(json_items_as_list, path, what)
+
+            futures.append(future)
+
+        for f in futures:
+            res = f.result()
+            progress_bar.update()
+
             # default sort order seems to return in the reverse order of 'save time', which makes sense to preserve
             # TODO reversing should probably be responsibility of HPI?
-            yield from reversed(list(json_items(f, what)))
-            pbar.update()
+            yield from reversed(res)
 
     def _accumulate(self, *, what: str, key: str = 'id') -> Iterator[Json]:
         emitted: Set[str] = set()
