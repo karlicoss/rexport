@@ -200,10 +200,16 @@ def make_dt(ts: float) -> datetime_aware:
     return datetime.fromtimestamp(ts, tz=timezone.utc)
 
 
+def json_items_list(*args):
+    return list(json_items(*args))
+
+
 class DAL:
-    def __init__(self, sources: Sequence[PathIsh]) -> None:
+    def __init__(self, sources: Sequence[PathIsh], *, cpu_pool=None) -> None:
         self.sources = list(map(pathify, sources))
         self.enlighten = logging_helper.get_enlighten()
+        # if cpu_pool is None, then run_in_executor would just execute in asyncio loop, i.e. serially
+        self.cpu_pool = cpu_pool
 
     # not sure how useful it is, but keeping for compatibility
     def raw(self):
@@ -211,20 +217,31 @@ class DAL:
             with f.open() as fo:
                 yield f, json.load(fo)
 
-    def _raw_json(self, *, what: str) -> Iterator[Json]:
+    async def _raw_json(self, *, what: str) -> Iterator[Json]:
+        import asyncio
+        loop = asyncio.get_running_loop()
+
         pbar = self.enlighten.counter(total=len(self.sources), desc=f'{__name__}[{what}]', unit='files')
-        for f in self.sources:
+        async def process_one(f: Path):
             # TODO maybe if enlighten is used, this should be debug instead? so logging isn't too verbose
             logger.info(f'processing {f}')
             # default sort order seems to return in the reverse order of 'save time', which makes sense to preserve
             # TODO reversing should probably be responsibility of HPI?
-            yield from reversed(list(json_items(f, what)))
+            res = await loop.run_in_executor(self.cpu_pool, json_items_list, f, what)
             pbar.update()
+            # TODO hmm we have to return a list, can't yield -- otherwise asyncio.gather isn't happy
+            return reversed(res)
 
-    def _accumulate(self, *, what: str, key: str = 'id') -> Iterator[Json]:
+        tasks = [process_one(f) for f in self.sources]
+        ress = await asyncio.gather(*tasks)
+        for rr in ress:
+            for x in rr:
+                yield x
+
+    async def _accumulate(self, *, what: str, key: str = 'id') -> Iterator[Json]:
         emitted: Set[str] = set()
         # todo use unique_everseen?
-        for raw in self._raw_json(what=what):
+        async for raw in self._raw_json(what=what):
             eid = raw[key]
             if eid in emitted:
                 continue
@@ -244,9 +261,9 @@ class DAL:
                 raw=s,
             )
 
-    def comments(self) -> Iterator[Comment]:
+    async def comments(self) -> Iterator[Comment]:
         # TODO makes sense to update them perhaps?
-        for raw in self._accumulate(what='comments'):
+        async for raw in self._accumulate(what='comments'):
             yield Comment(raw)
 
     def submissions(self) -> Iterator[Submission]:
