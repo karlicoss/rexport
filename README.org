@@ -82,7 +82,7 @@ Check out these links if you're interested in getting older data that's inaccess
 - [[https://www.reddit.com/r/DataHoarder/comments/d0hjs7/reddit_takeout_export_your_account_data_as_json/ezbbcxe][comment]] by /u/binkarus
 - [[https://www.reddit.com/r/ideasfortheadmins/wiki/faq#wiki_can_we_have_a_way_to_download_our_entire_history_even_though_reddit_cuts_off_at_a_certain_point.3F][Reddit admis]] say that the rationale behind the API limitation is performance and caching
 - perhaps you can request all of your data under [[https://www.reddit.com/r/DataHoarder/comments/d0hjs7/reddit_takeout_export_your_account_data_as_json/eza0nsx][GDPR]]? I haven't tried that personally though.
-- [[https://pushshift.io][pushshift]] can help you retrieve old data. You can use [[https://github.com/seanbreckenridge/pushshift_comment_export][seanbreckeridge/pushshift_comment_export]] to get the data.
+- [[https://pushshift.io][pushshift]] can help you retrieve old data. You can use [[https://github.com/purarue/pushshift_comment_export][purarue/pushshift_comment_export]] to get the data.
 
   
 * Example output
