@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 import json
-from typing import NamedTuple, List, Dict
+from typing import NamedTuple
 
 import praw  # type: ignore[import-untyped]
 from praw.models import (  # type: ignore[import-untyped]
@@ -16,8 +15,7 @@ from praw.models import (  # type: ignore[import-untyped]
 )
 
 from .exporthelpers.export_helper import Json
-from .exporthelpers.logging_helper import setup_logger, make_logger
-
+from .exporthelpers.logging_helper import make_logger, setup_logger
 
 logger = make_logger(__name__)
 
@@ -25,14 +23,14 @@ logger = make_logger(__name__)
 class RedditData(NamedTuple):
     # fmt: off
     profile     : Json
-    multireddits: List[Json]
-    subreddits  : List[Json]
-    saved       : List[Json]
-    upvoted     : List[Json]
-    downvoted   : List[Json]
-    comments    : List[Json]
-    submissions : List[Json]
-    inbox       : List[Json]
+    multireddits: list[Json]
+    subreddits  : list[Json]
+    saved       : list[Json]
+    upvoted     : list[Json]
+    downvoted   : list[Json]
+    comments    : list[Json]
+    submissions : list[Json]
+    inbox       : list[Json]
     # fmt: on
 
 
@@ -86,14 +84,14 @@ def jsonify(d):
     raise RuntimeError(f"Unexpected type: {type(d)}")
 
 
-def _extract(from_, **kwargs) -> List[Dict]:
+def _extract(from_, **kwargs) -> list[dict]:
     logger.info('fetching %s', from_)
     return jsonify(list(from_(**kwargs)))
 
 
 class Exporter:
-    def __init__(self, *args, **kwargs):
-        self.api = praw.Reddit(user_agent="rexport", *args, **kwargs)
+    def __init__(self, *args, **kwargs) -> None:
+        self.api = praw.Reddit(user_agent="rexport", *args, **kwargs)  # noqa: B026
 
     @property
     def _me(self):
@@ -143,7 +141,7 @@ def main() -> None:
 
 
 def make_parser():
-    from .exporthelpers.export_helper import setup_parser, Parser
+    from .exporthelpers.export_helper import Parser, setup_parser
 
     parser = Parser('Export your personal Reddit data: saves, upvotes, submissions etc. as JSON.')
     setup_parser(

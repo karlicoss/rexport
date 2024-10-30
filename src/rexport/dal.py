@@ -1,16 +1,16 @@
-#!/usr/bin/env python3
-from concurrent.futures import Executor
+from __future__ import annotations
+
 import contextlib
+import json
+from collections.abc import Iterator, Sequence
+from concurrent.futures import Executor
 from dataclasses import dataclass
 from datetime import datetime, timezone
-import json
 from pathlib import Path
-from typing import Iterator, Optional, Sequence, Set
 
 from .exporthelpers import dal_helper, logging_helper
-from .exporthelpers.dal_helper import PathIsh, Json, datetime_aware, pathify
-from .utils import json_items_as_list, DummyFuture
-
+from .exporthelpers.dal_helper import Json, PathIsh, datetime_aware, pathify
+from .utils import DummyFuture, json_items_as_list
 
 logger = logging_helper.make_logger(__name__)
 
@@ -203,7 +203,7 @@ def make_dt(ts: float) -> datetime_aware:
 
 
 class DAL:
-    def __init__(self, sources: Sequence[PathIsh], *, cpu_pool: Optional[Executor] = None) -> None:
+    def __init__(self, sources: Sequence[PathIsh], *, cpu_pool: Executor | None = None) -> None:
         self.sources = list(map(pathify, sources))
         self.cpu_pool = cpu_pool
         self.enlighten = logging_helper.get_enlighten()
@@ -240,7 +240,7 @@ class DAL:
             yield from reversed(res)
 
     def _accumulate(self, *, what: str, key: str = 'id') -> Iterator[Json]:
-        emitted: Set[str] = set()
+        emitted: set[str] = set()
         # todo use unique_everseen?
         for raw in self._raw_json(what=what):
             eid = raw[key]
@@ -302,10 +302,10 @@ def _test_data():
             yield x['data']
 
     # todo use more data from this repo
-    j = dict(
-        subreddits=list(get('subreddit/list.json')),
-        comments=list(get('user/comments.json')),
-    )
+    j = {
+        'subreddits': list(get('subreddit/list.json')),
+        'comments': list(get('user/comments.json')),
+    }
 
     from tempfile import TemporaryDirectory
 
