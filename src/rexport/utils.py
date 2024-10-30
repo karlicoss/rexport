@@ -1,11 +1,13 @@
-from concurrent.futures import Future
-from typing import Any, List, TYPE_CHECKING
+from __future__ import annotations
 
-from .exporthelpers.dal_helper import json_items, Json
+from concurrent.futures import Future
+from typing import TYPE_CHECKING, Any
+
+from .exporthelpers.dal_helper import Json, json_items
 
 
 # TODO move to dal_helper
-def json_items_as_list(*args, **kwargs) -> List[Json]:
+def json_items_as_list(*args, **kwargs) -> list[Json]:
     return list(json_items(*args, **kwargs))
 
 
@@ -21,10 +23,10 @@ else:
 
 
 class DummyFuture(DummyFutureBase):
-    def __init__(self, fn, *args, **kwargs):
+    def __init__(self, fn, *args, **kwargs) -> None:
         self.fn = fn
         self.args = args
         self.kwargs = kwargs
 
-    def result(self):
+    def result(self, timeout: float | None = None) -> Any:  # noqa: ARG002
         return self.fn(*self.args, **self.kwargs)
