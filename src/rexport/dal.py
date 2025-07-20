@@ -191,11 +191,13 @@ def reddit(suffix: str) -> str:
 
 
 def get_text(raw: Json) -> str:
-    bb = raw.get('body', None)
-    st = raw.get('selftext', None)
+    bb: str | None = raw.get('body', None)
+    st: str | None = raw.get('selftext', None)
     if bb is not None and st is not None:
         raise RuntimeError(f'wtf, both body and selftext are not None: {bb}; {st}')
-    return bb or st
+    res = bb or st
+    assert res is not None, f'both body and selftext are None? {raw=}'
+    return res
 
 
 def make_dt(ts: float) -> datetime_aware:
