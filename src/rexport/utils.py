@@ -8,7 +8,7 @@ from .exporthelpers.dal_helper import Json, json_items
 
 # TODO move to dal_helper
 def json_items_as_list(*args, **kwargs) -> list[Json]:
-    return list(json_items(*args, **kwargs))
+    return list(json_items(*args, **kwargs))  # ty: ignore[missing-argument]
 
 
 # TODO move to dal helper?

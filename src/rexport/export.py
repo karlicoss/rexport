@@ -102,7 +102,6 @@ class Exporter:
 
     def export_json(self) -> Json:
         rb = RedditData(
-            # fmt: off
             profile     =self.extract_profile(),
             multireddits=_extract(self.api.user.multireddits), # weird, multireddits has no limit
             subreddits  =_extract(self.api.user.subreddits, limit=None),
@@ -112,8 +111,7 @@ class Exporter:
             comments    =_extract(self._me.comments.new   , limit=None),
             submissions =_extract(self._me.submissions.new, limit=None),
             inbox       =_extract(self.api.inbox.all      , limit=None),
-            # fmt: on
-        )
+        )  # fmt: skip
         return rb._asdict()
 
     def export(self) -> Json:
