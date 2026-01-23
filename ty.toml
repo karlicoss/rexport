@@ -1,0 +1,7 @@
+[analysis]
+# Disable support for `type: ignore` comments
+# can probably remove after this? https://github.com/astral-sh/ty/issues/2494
+respect-type-ignore-comments = false
+
+[src]
+exclude = ["dal.py", "export.py"]
