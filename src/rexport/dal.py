@@ -5,11 +5,11 @@ import json
 from collections.abc import Iterator, Sequence
 from concurrent.futures import Executor
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from .exporthelpers import dal_helper, logging_helper
-from .exporthelpers.dal_helper import Json, PathIsh, datetime_aware, pathify
+from .exporthelpers.dal_helper import Json, datetime_aware, pathify
 from .utils import DummyFuture, json_items_as_list
 
 logger = logging_helper.make_logger(__name__)
@@ -201,11 +201,11 @@ def get_text(raw: Json) -> str:
 
 
 def make_dt(ts: float) -> datetime_aware:
-    return datetime.fromtimestamp(ts, tz=timezone.utc)
+    return datetime.fromtimestamp(ts, tz=UTC)
 
 
 class DAL:
-    def __init__(self, sources: Sequence[PathIsh], *, cpu_pool: Executor | None = None) -> None:
+    def __init__(self, sources: Sequence[Path | str], *, cpu_pool: Executor | None = None) -> None:
         self.sources = list(map(pathify, sources))
         self.cpu_pool = cpu_pool
         self.enlighten = logging_helper.get_enlighten()

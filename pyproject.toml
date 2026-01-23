@@ -5,20 +5,16 @@ name = "rexport"
 dependencies = [
     "rexport[export]",  # TODO backwards compatibility -- remove later?
 ]
-requires-python = ">=3.9"
+requires-python = ">=3.12"
 
-## these need to be set if you're planning to upload to pypi
-# description = "TODO"
-# license = {file = "LICENSE"}
-# authors = [
-#     {name = "Dima Gerasimov (@karlicoss)", email = "karlicoss@gmail.com"},
-# ]
-# maintainers = [
-#     {name = "Dima Gerasimov (@karlicoss)", email = "karlicoss@gmail.com"},
-# ]
-#
-# [project.urls]
-# Homepage = "https://github.com/karlicoss/pymplate"
+## these are only useful for pypi
+description = "Reddit takeout: export your account data as JSON: comments, submissions, upvotes etc."  # shows on project page/in search
+license     = {file = "LICENSE"}
+authors     = [{name = "Dima Gerasimov (@karlicoss)", email = "karlicoss@gmail.com"}]
+maintainers = [{name = "Dima Gerasimov (@karlicoss)", email = "karlicoss@gmail.com"}]
+
+[project.urls]  # pypi will fetch some github stats/link, so somewhat useful
+Homepage = "https://github.com/karlicoss/rexport"
 ##
 
 
@@ -32,16 +28,23 @@ optional = [
     "colorlog",
     "ijson",  # faster iterative json processing
 ]
+
 [dependency-groups]
 # TODO: not sure, on the one hand could just use 'standard' dev dependency group
 # On the other hand, it's a bit annoying that it's always included by default? 
 # To make sure it's not included, need to use `uv run --exact --no-default-groups ...`
 testing = [
-    "pytest",
+    "pytest>=9",  # need version 9 for proper namespace package support
     "ruff",
+
+    "rexport[dal,export,optional]",
+]
+typecheck = [
     "mypy",
     "lxml", # for mypy html coverage
-    "ty>=0.0.1a15",
+    "ty>=0.0.13",
+
+    { include-group = "testing" },
 ]
 
 
