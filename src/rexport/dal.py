@@ -2,15 +2,17 @@ from __future__ import annotations
 
 import contextlib
 import json
-from collections.abc import Iterator, Sequence
+from collections.abc import Iterable, Iterator, Sequence
 from concurrent.futures import Executor
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 
+from more_itertools import chunked
+
 from .exporthelpers import dal_helper, logging_helper
-from .exporthelpers.dal_helper import Json, datetime_aware, pathify
-from .utils import DummyFuture, json_items_as_list
+from .exporthelpers.dal_helper import Json, datetime_aware, json_items, pathify
 
 logger = logging_helper.make_logger(__name__)
 
@@ -204,10 +206,25 @@ def make_dt(ts: float) -> datetime_aware:
     return datetime.fromtimestamp(ts, tz=UTC)
 
 
+def _process_path(path: Path, *, what: str, return_list: bool) -> Iterable[Json]:
+    """
+    Helper function to process one file -- needs to be on the top level in case ProcessPoolExecutor is used.
+    """
+    # TODO maybe if enlighten is used, this should be debug instead? so logging isn't too verbose
+    # I think I had something similar in one of other DALS
+    logger.info(f'processing {path}')
+    it = json_items(path, key=what)
+    # need to turn it into a list if executor is used, otherwise it returns iterator so we don't get a speedup
+    return list(it) if return_list else it
+
+
 class DAL:
-    def __init__(self, sources: Sequence[Path | str], *, cpu_pool: Executor | None = None) -> None:
+    def __init__(self, sources: Sequence[Path | str], *, executor: Executor | None = None) -> None:
+        """
+        executor: optional Executor (e.g. ThreadPoolExecutor) to use for CPU-bound tasks (e.g. parsing json).
+        """
         self.sources = list(map(pathify, sources))
-        self.cpu_pool = cpu_pool
+        self.executor = executor
         self.enlighten = logging_helper.get_enlighten()
 
     # not sure how useful it is, but keeping for compatibility
@@ -219,27 +236,20 @@ class DAL:
     def _raw_json(self, *, what: str) -> Iterator[Json]:
         progress_bar = self.enlighten.counter(total=len(self.sources), desc=f'{__name__}[{what}]', unit='files')
 
-        cpu_pool = self.cpu_pool
+        executor = self.executor
+        _map = map if executor is None else executor.map
+        workers = None if executor is None else getattr(executor, '_max_workers')
 
-        futures = []
-        for path in self.sources:
-            # TODO maybe if enlighten is used, this should be debug instead? so logging isn't too verbose
-            logger.info(f'processing {path}')
+        # Batch input data by the amount of available workers.
+        # This is to make sure that in case of slow consumer, results don't build up and we won't run out of memory.
+        for chunk in chunked(self.sources, n=workers):
+            results = _map(partial(_process_path, what=what, return_list=(executor is not None)), chunk)
+            for res in results:
+                progress_bar.update()
 
-            if cpu_pool is not None:
-                future = cpu_pool.submit(json_items_as_list, path, what)
-            else:
-                future = DummyFuture(json_items_as_list, path, what)
-
-            futures.append(future)
-
-        for f in futures:
-            res = f.result()
-            progress_bar.update()
-
-            # default sort order seems to return in the reverse order of 'save time', which makes sense to preserve
-            # TODO reversing should probably be responsibility of HPI?
-            yield from reversed(res)
+                # default sort order seems to return in the reverse order of 'save time', which makes sense to preserve
+                # TODO reversing should probably be responsibility of HPI?
+                yield from res
 
     def _accumulate(self, *, what: str, key: str = 'id') -> Iterator[Json]:
         emitted: set[str] = set()
