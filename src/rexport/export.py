@@ -63,7 +63,6 @@ def jsonify(d):
     if isinstance(d, dict):
         return {k: jsonify(v) for k, v in d.items() if not ignore_item(k, v)}
 
-    # fmt: off
     if isinstance(d, (
             Redditor,
             Subreddit,
@@ -74,9 +73,9 @@ def jsonify(d):
             PollData,
             PollOption,
             UserSubreddit,
-    )): # TODO eh, hopefully it can't go into infinite loop...
+    )):  # fmt: skip
+        # TODO eh, hopefully it can't go into infinite loop...
         return jsonify(vars(d))
-    # fmt: on
 
     if isinstance(d, praw.Reddit):
         return None

@@ -3,7 +3,7 @@
 dynamic = ["version"]  # version is managed by build backend
 name = "rexport"
 dependencies = [
-    "rexport[export]",  # TODO backwards compatibility -- remove later?
+    "rexport[export,dal]",  # TODO backwards compatibility -- remove later?
 ]
 requires-python = ">=3.12"
 
@@ -19,7 +19,9 @@ Homepage = "https://github.com/karlicoss/rexport"
 
 
 [project.optional-dependencies]
-dal = []
+dal = [
+    "more-itertools",
+]
 export = [
     "praw",  # reddit API
 ]
