@@ -1,8 +1,8 @@
 import json
 from typing import NamedTuple
 
-import praw  # type: ignore[import-untyped]
-from praw.models import (  # type: ignore[import-untyped]
+import praw
+from praw.models import (
     Comment,
     Message,
     Multireddit,
@@ -150,7 +150,7 @@ def make_parser():
             'client_secret',
         ],
         extra_usage='''
-You can also import ~export.py~ as a module and call ~get_json~ function directly to get raw JSON.
+You can also import `export.py` as a module and call `get_json` function directly to get raw JSON.
         ''',
     )
     return parser
