@@ -1,4 +1,5 @@
 import json
+import time
 from typing import NamedTuple
 
 import praw
@@ -13,11 +14,14 @@ from praw.models import (
     Subreddit,
     UserSubreddit,
 )
+from prawcore.exceptions import NotFound
 
 from .exporthelpers.export_helper import Json
 from .exporthelpers.logging_helper import make_logger, setup_logger
 
 logger = make_logger(__name__)
+
+_NOT_FOUND_RETRY_DELAYS_SECONDS = (1, 2, 4)
 
 
 class RedditData(NamedTuple):
@@ -85,7 +89,19 @@ def jsonify(d):
 
 def _extract(from_, **kwargs) -> list[dict]:
     logger.info('fetching %s', from_)
-    return jsonify(list(from_(**kwargs)))
+    # Reddit occasionally returns transient 404 responses for listing requests.
+    retry_delays = iter(_NOT_FOUND_RETRY_DELAYS_SECONDS)
+    while True:
+        try:
+            items = list(from_(**kwargs))
+            break
+        except NotFound:
+            delay = next(retry_delays, None)
+            if delay is None:
+                raise
+            logger.warning('received NotFound while fetching %s; retrying in %s seconds', from_, delay)
+            time.sleep(delay)
+    return jsonify(items)
 
 
 class Exporter:
