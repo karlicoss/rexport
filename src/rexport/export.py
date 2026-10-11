@@ -94,14 +94,14 @@ def _extract(from_, **kwargs) -> list[dict]:
     while True:
         try:
             items = list(from_(**kwargs))
-            break
         except NotFound:
             delay = next(retry_delays, None)
             if delay is None:
                 raise
             logger.warning('received NotFound while fetching %s; retrying in %s seconds', from_, delay)
             time.sleep(delay)
-    return jsonify(items)
+        else:
+            return jsonify(items)
 
 
 class Exporter:
