@@ -245,6 +245,8 @@ tags
 
 # End of https://www.toptal.com/developers/gitignore/api/vim,emacs,python
 
-
 # for now, deliberately ignoring so CI always runs against latest versions
-uv.lock
+/uv.lock
+
+/.quarto/
+**/*.quarto_ipynb
