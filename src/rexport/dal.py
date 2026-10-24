@@ -2,19 +2,22 @@ from __future__ import annotations
 
 import contextlib
 import json
-from collections.abc import Iterable, Iterator, Sequence
+from collections.abc import Iterator, Sequence
 from concurrent.futures import Executor
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from functools import partial
 from pathlib import Path
 
-from more_itertools import chunked
+import hpikit.cli.dal as cli
+import koncurrent
+from hpikit.datetime import AwareDateTime, aware
+from hpikit.json import Json, loads
+from hpikit.paths import as_paths
+from kloggy import get_logger
+from kloggy.progress import progress
 
-from .exporthelpers import dal_helper, logging_helper
-from .exporthelpers.dal_helper import Json, datetime_aware, json_items, pathify
-
-logger = logging_helper.make_logger(__name__)
+logger = get_logger(__name__)
 
 
 Sid = str
@@ -23,7 +26,7 @@ Sid = str
 # TODO quite a bit of duplication... use dataclasses + mixin?
 @dataclass
 class Save:
-    created: datetime_aware
+    created: AwareDateTime
     title: str
     raw: Json
 
@@ -61,7 +64,7 @@ class Comment:
         return self.raw['id']
 
     @property
-    def created(self) -> datetime_aware:
+    def created(self) -> AwareDateTime:
         return make_dt(self.raw['created_utc'])
 
     @property
@@ -82,7 +85,7 @@ class Submission:
         return self.raw['id']
 
     @property
-    def created(self) -> datetime_aware:
+    def created(self) -> AwareDateTime:
         return make_dt(self.raw['created_utc'])
 
     @property
@@ -107,7 +110,7 @@ class Upvote:
         return self.raw['id']
 
     @property
-    def created(self) -> datetime_aware:
+    def created(self) -> AwareDateTime:
         return make_dt(self.raw['created_utc'])
 
     @property
@@ -202,67 +205,66 @@ def get_text(raw: Json) -> str:
     return res
 
 
-def make_dt(ts: float) -> datetime_aware:
-    return datetime.fromtimestamp(ts, tz=UTC)
+def make_dt(ts: float) -> AwareDateTime:
+    return aware(datetime.fromtimestamp(ts, tz=UTC))
 
 
-def _process_path(path: Path, *, what: str, return_list: bool) -> Iterable[Json]:
+def _process_path(path: Path, *, what: str) -> list[Json]:
     """
     Helper function to process one file -- needs to be on the top level in case ProcessPoolExecutor is used.
     """
-    # TODO maybe if enlighten is used, this should be debug instead? so logging isn't too verbose
-    # I think I had something similar in one of other DALS
-    logger.info(f'processing {path}')
-    it = json_items(path, key=what)
-    # need to turn it into a list if executor is used, otherwise it returns iterator so we don't get a speedup
-    return list(it) if return_list else it
+    return loads(path.read_bytes())[what]
 
 
 class DAL:
-    def __init__(self, sources: Sequence[Path | str], *, executor: Executor | None = None) -> None:
-        """
-        executor: optional Executor (e.g. ThreadPoolExecutor) to use for CPU-bound tasks (e.g. parsing json).
-        """
-        self.sources = list(map(pathify, sources))
-        self.executor = executor
-        self.enlighten = logging_helper.get_enlighten()
+    def __init__(self, sources: Sequence[Path | str]) -> None:
+        self.sources = as_paths(sources)
+
+        # where to parse the files -- None means koncurrent's shared default, serial unless configured otherwise
+        # set these before iterating to override, e.g. dal.executor = ThreadPoolExecutor(4)
+        self.executor: Executor | None = None
+        self.buffersize: int | None = None  # None: twice the executor's number of workers, or 1 when running serially
 
     # not sure how useful it is, but keeping for compatibility
     def raw(self):
         for f in self.sources:
-            with f.open() as fo:
-                yield f, json.load(fo)
+            yield f, loads(f.read_bytes())
 
-    def _raw_json(self, *, what: str) -> Iterator[Json]:
-        progress_bar = self.enlighten.counter(total=len(self.sources), desc=f'{__name__}[{what}]', unit='files')
-
-        executor = self.executor
-        _map = map if executor is None else executor.map
-        workers = None if executor is None else getattr(executor, '_max_workers')
-
-        # Batch input data by the amount of available workers.
-        # This is to make sure that in case of slow consumer, results don't build up and we won't run out of memory.
-        for chunk in chunked(self.sources, n=workers):
-            results = _map(partial(_process_path, what=what, return_list=(executor is not None)), chunk)
-            for res in results:
-                progress_bar.update()
-
+    def _raw_json(self, *, what: str) -> Iterator[Json | Exception]:
+        process = partial(_process_path, what=what)
+        with koncurrent.map_results(
+            process, self.sources, executor=self.executor, buffersize=self.buffersize
+        ) as results:
+            # Track results as they are consumed, so queued executor work doesn't advance the bar prematurely.
+            # Log each path before waiting for its result, including before parsing in serial mode.
+            files = progress(self.sources, logger=logger, desc=f'{__name__}[{what}]', unit='files')
+            for path, result in zip(files, results, strict=True):
+                if isinstance(result, Exception):
+                    result.add_note(f'^ while processing {path}')
+                    yield result
+                    continue
                 # default sort order seems to return in the reverse order of 'save time', which makes sense to preserve
                 # TODO reversing should probably be responsibility of HPI?
-                yield from res
+                yield from result
 
-    def _accumulate(self, *, what: str, key: str = 'id') -> Iterator[Json]:
+    def _accumulate(self, *, what: str, key: str = 'id') -> Iterator[Json | Exception]:
         emitted: set[str] = set()
         # todo use unique_everseen?
         for raw in self._raw_json(what=what):
+            if isinstance(raw, Exception):
+                yield raw
+                continue
             eid = raw[key]
             if eid in emitted:
                 continue
             emitted.add(eid)
             yield raw
 
-    def saved(self) -> Iterator[Save]:
+    def saved(self) -> Iterator[Save | Exception]:
         for s in self._accumulate(what='saved'):
+            if isinstance(s, Exception):
+                yield s
+                continue
             created = make_dt(s['created_utc'])
             # TODO need permalink
             # url = get_some(s, 'link_permalink', 'url') # this was original url...
@@ -274,34 +276,48 @@ class DAL:
                 raw=s,
             )
 
-    def comments(self) -> Iterator[Comment]:
+    def comments(self) -> Iterator[Comment | Exception]:
         # TODO makes sense to update them perhaps?
         for raw in self._accumulate(what='comments'):
+            if isinstance(raw, Exception):
+                yield raw
+                continue
             yield Comment(raw)
 
-    def submissions(self) -> Iterator[Submission]:
+    def submissions(self) -> Iterator[Submission | Exception]:
         # TODO for submissions, makes sense to update (e.g. for upvotes)
         for raw in self._accumulate(what='submissions'):
+            if isinstance(raw, Exception):
+                yield raw
+                continue
             yield Submission(raw)
 
-    def upvoted(self) -> Iterator[Upvote]:
+    def upvoted(self) -> Iterator[Upvote | Exception]:
         for raw in self._accumulate(what='upvoted'):
+            if isinstance(raw, Exception):
+                yield raw
+                continue
             yield Upvote(raw)
 
-    def subreddits(self) -> Iterator[Subreddit]:
+    def subreddits(self) -> Iterator[Subreddit | Exception]:
         for raw in self._accumulate(what='subreddits'):
+            if isinstance(raw, Exception):
+                yield raw
+                continue
             yield Subreddit(raw)
 
-    def multireddits(self) -> Iterator[Multireddit]:
+    def multireddits(self) -> Iterator[Multireddit | Exception]:
         for raw in self._accumulate(what='multireddits', key='path'):
+            if isinstance(raw, Exception):
+                yield raw
+                continue
             yield Multireddit(raw)
 
     def profile(self) -> Profile:
         # meh.. doesn't really conform to the rest of data which are iterables
         last = max(self.sources)
-        with last.open() as fo:
-            j = json.load(fo)
-            return Profile(j['profile'])
+        j = loads(last.read_bytes())
+        return Profile(j['profile'])
 
 
 @contextlib.contextmanager
@@ -341,6 +357,9 @@ def test() -> None:
 def demo(dal: DAL) -> None:
     print("Your comments:")
     for s in dal.comments():
+        if isinstance(s, Exception):
+            logger.error(s, exc_info=s)
+            continue
         print(s.created, s.url)
         sep = '\n |  '
         body = sep + sep.join(s.text.splitlines())
@@ -350,7 +369,12 @@ def demo(dal: DAL) -> None:
 
     from collections import Counter
 
-    c = Counter([s.subreddit for s in dal.saved()])
+    c: Counter[str] = Counter()
+    for saved in dal.saved():
+        if isinstance(saved, Exception):
+            logger.error(saved, exc_info=saved)
+            continue
+        c[saved.subreddit] += 1
     from pprint import pprint
 
     print("Your most saved subreddits:")
@@ -358,4 +382,4 @@ def demo(dal: DAL) -> None:
 
 
 if __name__ == '__main__':
-    dal_helper.main(DAL=DAL, demo=demo)
+    cli.main(DAL=DAL, demo=demo)
