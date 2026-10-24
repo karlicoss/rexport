@@ -1,5 +1,8 @@
 ---
-format: gfm
+format:
+  gfm:
+    # keep the line breaks from README.qmd, rather than rewrapping at 72 columns
+    wrap: preserve
 execute:
   # Hide code by default; individual cells can override this when useful.
   echo: false
@@ -17,12 +20,14 @@ from tomllib import loads
 
 from IPython.display import Markdown
 
+from hpikit.cli import format_epilog
+
 project = loads(Path("pyproject.toml").read_text())["project"]
 project_name = project["name"]
 git_http_link = f"git+{project['urls']['Homepage']}"
 
 export_parser = import_module(f'{project_name}.export').make_parser()
-dal_parser = import_module(f'{project_name}.exporthelpers.dal_helper').make_parser()
+dal_parser = import_module('hpikit.cli.dal').make_parser()
 
 
 def inline_code(text: str) -> Markdown:
@@ -32,7 +37,7 @@ def inline_code(text: str) -> Markdown:
 ```{python}
 #| label: export-program
 #| output: asis
-print(export_parser.prog)
+print(export_parser.description)
 ```
 
 <!-- Keep this separator: Quarto otherwise moves the generated preamble below the following heading. -->
@@ -76,7 +81,7 @@ See the [`optional-dependencies`](pyproject.toml) section in `pyproject.toml` fo
 ```{python}
 #| label: export-help
 #| output: asis
-print(export_parser.epilog)
+print(format_epilog(export_parser, prog=f'python3 -m {project_name}.export'))
 ```
 
 ## Setting up API parameters
@@ -129,7 +134,7 @@ The format is API-dependent and changes over time, so check the [Reddit API](htt
 ```{python}
 #| label: dal-help
 #| output: asis
-print(dal_parser.epilog)
+print(format_epilog(dal_parser, prog=f'python3 -m {project_name}.dal'))
 ```
 
 ## Example output

@@ -1,8 +1,13 @@
+import argparse
 import json
 import time
 from typing import NamedTuple
 
+import hpikit.cli.export as cli
+import kloggy
 import praw
+from hpikit.json import Json
+from kloggy import get_logger
 from praw.models import (
     Comment,
     Message,
@@ -16,10 +21,7 @@ from praw.models import (
 )
 from prawcore.exceptions import NotFound
 
-from .exporthelpers.export_helper import Json
-from .exporthelpers.logging_helper import make_logger, setup_logger
-
-logger = make_logger(__name__)
+logger = get_logger(__name__)
 
 _NOT_FOUND_RETRY_DELAYS_SECONDS = (1, 2, 4)
 
@@ -139,26 +141,25 @@ def get_json(**params) -> Json:
 
 
 def main() -> None:
+    kloggy.setup()
+    # prawcore logs each API request and its rate limiting at debug level, which can be useful during development
     # https://praw.readthedocs.io/en/latest/getting_started/logging.html
-    setup_logger('prawcore', level='INFO')  # debug can be useful during development
+    # import logging
+    # logging.getLogger('prawcore').setLevel(logging.DEBUG)
 
     parser = make_parser()
     args = parser.parse_args()
 
-    params = args.params
-    dumper = args.dumper
+    params = cli.get_params(parser, args)
 
     j = get_json(**params)
     js = json.dumps(j, ensure_ascii=False, indent=1)
-    dumper(js)
+    cli.dump(js, path=args.path)
 
 
-def make_parser():
-    from .exporthelpers.export_helper import Parser, setup_parser
-
-    parser = Parser('Export your personal Reddit data: saves, upvotes, submissions etc. as JSON.')
-    setup_parser(
-        parser=parser,
+def make_parser() -> argparse.ArgumentParser:
+    parser = cli.make_parser(
+        description='Export your personal Reddit data: saves, upvotes, submissions etc. as JSON.',
         params=[
             'username',
             'password',
