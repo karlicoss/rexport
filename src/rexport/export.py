@@ -167,7 +167,7 @@ def make_parser() -> argparse.ArgumentParser:
             'client_secret',
         ],
         extra_usage='''
-You can also import `export.py` as a module and call `get_json` function directly to get raw JSON.
+You can also import `rexport.export` and call `get_json` directly to get raw JSON.
         ''',
     )
     return parser
