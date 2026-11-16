@@ -62,7 +62,7 @@ That way you type less and have control over where you keep your plaintext secre
 
 However, this is verbose and prone to leaking your keys/tokens/passwords in shell history.
 
-You can also import `export.py` as a module and call `get_json` function directly to get raw JSON.
+You can also import `rexport.export` and call `get_json` directly to get raw JSON.
 
 I **highly** recommend checking exported files at least once just to make sure they contain everything you expect from your export.
 If they don’t, please feel free to ask or raise an issue!

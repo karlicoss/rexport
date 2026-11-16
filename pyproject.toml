@@ -104,10 +104,6 @@ enable_error_code = [
 truthiness-test-of-none-union = "error"
 
 
-[tool.ty.src]
-exclude = ["dal.py", "export.py"]
-
-
 [tool.ruff]
 line-length = 120  # impacts import sorting
 
@@ -225,8 +221,6 @@ lint.ignore = [
 #       "scratch/**",
 #   ]
 extend-exclude = [
-    "./dal.py",  # legacy helper
-    "./export.py",  # legacy helper
 ]
 
 [tool.ruff.format]
